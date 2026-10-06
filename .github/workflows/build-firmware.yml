@@ -50,8 +50,28 @@ jobs:
       - name: Prepare web installer
         shell: bash
         run: |
-          cp firmware/roundgames-full.bin web-installer/roundgames-full.bin
-          test -s web-installer/roundgames-full.bin
+          VERSIONED_BIN="roundgames-${GITHUB_SHA::12}.bin"
+          rm -f web-installer/roundgames-*.bin
+          cp firmware/roundgames-full.bin "web-installer/${VERSIONED_BIN}"
+          test -s "web-installer/${VERSIONED_BIN}"
+          cat > web-installer/manifest.json <<EOF
+          {
+            "name": "RoundGames",
+            "version": "${GITHUB_SHA::12}",
+            "new_install_prompt_erase": true,
+            "builds": [
+              {
+                "chipFamily": "ESP32-S3",
+                "parts": [
+                  {
+                    "path": "./${VERSIONED_BIN}",
+                    "offset": 0
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
