@@ -149,7 +149,8 @@ static void generic_back_launcher_cb(lv_event_t *e) { LV_UNUSED(e); activity_res
 
 static void set_brightness(int value)
 {
-    if (value < 10) value = 10; if (value > 100) value = 100;
+    if (value < 10) value = 10;
+    if (value > 100) value = 100;
     current_brightness = value; bsp_display_brightness_set(value);
     if (brightness_slider) lv_slider_set_value(brightness_slider, value, LV_ANIM_OFF);
     if (brightness_value_label) lv_label_set_text_fmt(brightness_value_label, "%d%%", value);
@@ -161,7 +162,8 @@ static void brightness_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_brightness(cur
 
 static void set_volume(int value)
 {
-    if (value < 0) value = 0; if (value > 100) value = 100;
+    if (value < 0) value = 0;
+    if (value > 100) value = 100;
     current_volume = value;
     if (volume_slider) lv_slider_set_value(volume_slider, value, LV_ANIM_OFF);
     if (volume_value_label) lv_label_set_text_fmt(volume_value_label, "%d%%", value);
@@ -176,7 +178,8 @@ static void mute_cb(lv_event_t *e) { LV_UNUSED(e); sound_muted = !sound_muted; i
 
 static void set_dim_brightness(int value)
 {
-    if (value < 5) value = 5; if (value > 50) value = 50;
+    if (value < 5) value = 5;
+    if (value > 50) value = 50;
     dim_brightness = value;
     if (dim_slider) lv_slider_set_value(dim_slider, value, LV_ANIM_OFF);
     if (dim_value_label) lv_label_set_text_fmt(dim_value_label, "%d%%", value);
