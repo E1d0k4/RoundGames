@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -9,6 +11,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_codec_dev.h"
 #include "lvgl.h"
 
 #include "bsp/esp-bsp.h"
@@ -37,16 +40,18 @@ static lv_timer_t *screensaver_timer = NULL;
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 
+static esp_codec_dev_handle_t speaker_codec = NULL;
+static int16_t tone_buffer[2880];
+static bool tone_ready = false;
+
 static void screensaver_wake_cb(lv_event_t *e);
 
 static void build_launcher(void);
 static void build_settings_menu(void);
 static void build_brightness_page(void);
 static void build_volume_page(void);
-static void build_dimming_page(void);
 static void build_language_page(void);
 static void build_clock_page(void);
-static void build_screensaver_page(void);
 static void build_theme_page(void);
 static void build_info_page(void);
 static void show_status(const char *title, const char *message);
