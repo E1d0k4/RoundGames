@@ -14,6 +14,83 @@ static const char *TAG = "roundgames";
 
 static void build_launcher(void);
 static void build_brightness_page(void);
+static void build_settings_menu(void);
+static void show_status(const char *title, const char *message);
+static int current_brightness = 50;
+static lv_obj_t *brightness_value_label = NULL;
+static lv_obj_t *brightness_slider = NULL;
+static bool brightness_updating = false;
+
+static void clear_screen(void)
+{
+    lv_obj_t *screen = lv_scr_act();
+    lv_obj_clean(screen);
+}
+
+static void back_button_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    build_launcher();
+}
+
+static void brightness_update(int value)
+{
+    if (value < 10) value = 10;
+    if (value > 100) value = 100;
+    current_brightness = value;
+    bsp_display_brightness_set(current_brightness);
+
+    if (brightness_updating) {
+        return;
+    }
+
+    brightness_updating = true;
+
+    if (brightness_slider != NULL) {
+        lv_slider_set_value(brightness_slider, current_brightness, LV_ANIM_OFF);
+    }
+
+    if (brightness_value_label != NULL) {
+        lv_label_set_text_fmt(brightness_value_label, "%d%%", current_brightness);
+    }
+
+    brightness_updating = false;
+}
+
+static void brightness_slider_cb(lv_event_t *e)
+{
+    lv_obj_t *slider = lv_event_get_target(e);
+    if (!brightness_updating) {
+        brightness_update(lv_slider_get_value(slider));
+    }
+}
+
+static void brightness_minus_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    brightness_update(current_brightness - 10);
+}
+
+static void brightness_plus_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    brightness_update(current_brightness + 10);
+}
+
+static void settings_menu_cb(lv_event_t *e)
+{
+    const char *name = (const char *)lv_event_get_user_data(e);
+    if (name == NULL) {
+        return;
+    }
+
+    if (strcmp(name, "Brightness") == 0) {
+        build_brightness_page();
+    } else {
+        show_status(name, "This setting will be added in a later phase.");
+    }
+}
+
 static void build_settings_menu(void)
 {
     clear_screen();
@@ -90,7 +167,6 @@ static void build_settings_menu(void)
 
     lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 }
-
 static void build_brightness_page(void)
 {
     clear_screen();
