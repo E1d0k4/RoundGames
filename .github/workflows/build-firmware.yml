@@ -1,9 +1,12 @@
-name: Build RoundGames firmware
+name: Build and publish RoundGames firmware
 
 on:
   push:
     branches: ["main"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -28,3 +31,14 @@ jobs:
         with:
           name: roundgames-firmware
           path: firmware/roundgames-full.bin
+
+      - name: Publish installer firmware
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: RoundGames Nightly
+          prerelease: true
+          make_latest: false
+          generate_release_notes: false
+          files: firmware/roundgames-full.bin
+          fail_on_unmatched_files: true
