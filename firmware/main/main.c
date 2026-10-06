@@ -77,7 +77,7 @@ static void build_brightness_page(void)
 
     lv_obj_t *slider = lv_slider_create(screen);
     lv_obj_set_width(slider, 330);
-    lv_obj_set_range(slider, 5, 100);
+    lv_slider_set_range(slider, 5, 100);
     lv_slider_set_value(slider, current_brightness, LV_ANIM_OFF);
     lv_obj_align(slider, LV_ALIGN_CENTER, 0, 5);
     lv_obj_add_event_cb(slider, brightness_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
