@@ -9,11 +9,13 @@
 
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
-#include "bsp/touch.h"
 
 static const char *TAG = "roundgames";
 
 static void build_launcher(void);
+static void build_brightness_page(void);
+static int current_brightness = 50;
+static lv_obj_t *brightness_value_label = NULL;
 
 static void clear_screen(void)
 {
@@ -25,6 +27,86 @@ static void back_button_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
     build_launcher();
+}
+
+static void brightness_update(int value)
+{
+    if (value < 5) value = 5;
+    if (value > 100) value = 100;
+    current_brightness = value;
+    bsp_display_brightness_set(current_brightness);
+
+    if (brightness_value_label != NULL) {
+        lv_label_set_text_fmt(brightness_value_label, "%d%%", current_brightness);
+    }
+}
+
+static void brightness_slider_cb(lv_event_t *e)
+{
+    lv_obj_t *slider = lv_event_get_target(e);
+    brightness_update(lv_slider_get_value(slider));
+}
+
+static void brightness_minus_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    brightness_update(current_brightness - 5);
+}
+
+static void brightness_plus_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    brightness_update(current_brightness + 5);
+}
+
+static void build_brightness_page(void)
+{
+    clear_screen();
+
+    lv_obj_t *screen = lv_scr_act();
+
+    lv_obj_t *title = lv_label_create(screen);
+    lv_label_set_text(title, "Brightness");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 55);
+
+    brightness_value_label = lv_label_create(screen);
+    lv_label_set_text_fmt(brightness_value_label, "%d%%", current_brightness);
+    lv_obj_set_style_text_font(brightness_value_label, &lv_font_montserrat_24, 0);
+    lv_obj_align(brightness_value_label, LV_ALIGN_CENTER, 0, -55);
+
+    lv_obj_t *slider = lv_slider_create(screen);
+    lv_obj_set_width(slider, 330);
+    lv_obj_set_range(slider, 5, 100);
+    lv_slider_set_value(slider, current_brightness, LV_ANIM_OFF);
+    lv_obj_align(slider, LV_ALIGN_CENTER, 0, 5);
+    lv_obj_add_event_cb(slider, brightness_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    lv_obj_t *minus = lv_button_create(screen);
+    lv_obj_set_size(minus, 90, 64);
+    lv_obj_align(minus, LV_ALIGN_CENTER, -120, 85);
+    lv_obj_t *minus_label = lv_label_create(minus);
+    lv_label_set_text(minus_label, "-");
+    lv_obj_set_style_text_font(minus_label, &lv_font_montserrat_24, 0);
+    lv_obj_center(minus_label);
+    lv_obj_add_event_cb(minus, brightness_minus_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *plus = lv_button_create(screen);
+    lv_obj_set_size(plus, 90, 64);
+    lv_obj_align(plus, LV_ALIGN_CENTER, 120, 85);
+    lv_obj_t *plus_label = lv_label_create(plus);
+    lv_label_set_text(plus_label, "+");
+    lv_obj_set_style_text_font(plus_label, &lv_font_montserrat_24, 0);
+    lv_obj_center(plus_label);
+    lv_obj_add_event_cb(plus, brightness_plus_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *back = lv_button_create(screen);
+    lv_obj_set_size(back, 180, 60);
+    lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -35);
+    lv_obj_t *back_label = lv_label_create(back);
+    lv_label_set_text(back_label, "Back");
+    lv_obj_center(back_label);
+    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 }
 
 static void show_status(const char *title, const char *message)
@@ -66,7 +148,7 @@ static void launcher_button_cb(lv_event_t *e)
     if (strcmp(name, "Tic-Tac-Toe") == 0) {
         show_status("Tic-Tac-Toe", "Game module will be added next.");
     } else {
-        show_status("Settings", "System settings UI will be added next.");
+        build_brightness_page();
     }
 }
 
@@ -119,7 +201,7 @@ void app_main(void)
     bsp_display_start();
 
     // Start at a comfortable brightness instead of full brightness.
-    bsp_display_brightness_set(50);
+    bsp_display_brightness_set(current_brightness);
 
     bsp_display_lock(-1);
     build_launcher();
