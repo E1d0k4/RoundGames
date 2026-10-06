@@ -77,6 +77,17 @@ static void brightness_plus_cb(lv_event_t *e)
     brightness_update(current_brightness + 10);
 }
 
+static void settings_gesture_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
+    if (dir == LV_DIR_BOTTOM) {
+        lv_indev_wait_release(lv_indev_active());
+        build_settings_menu();
+    }
+}
+
 static void settings_menu_cb(lv_event_t *e)
 {
     const char *name = (const char *)lv_event_get_user_data(e);
@@ -98,6 +109,7 @@ static void build_settings_menu(void)
     brightness_value_label = NULL;
 
     lv_obj_t *screen = lv_scr_act();
+    lv_obj_add_event_cb(screen, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
 
     lv_obj_t *title = lv_label_create(screen);
     lv_label_set_text(title, "Settings");
@@ -109,13 +121,6 @@ static void build_settings_menu(void)
         LV_SYMBOL_EYE_CLOSE, LV_SYMBOL_SETTINGS,
         LV_SYMBOL_SETTINGS, LV_SYMBOL_IMAGE,
         LV_SYMBOL_EDIT, LV_SYMBOL_WIFI
-    };
-
-    static const char *labels[] = {
-        "Brightness", "Sound",
-        "Dimming", "Language",
-        "Clock", "Screensaver",
-        "Theme", "Info"
     };
 
     static const char *names[] = {
@@ -137,36 +142,25 @@ static void build_settings_menu(void)
 
         lv_obj_t *icon = lv_label_create(button);
         lv_label_set_text(icon, symbols[i]);
-        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
-        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 18, 0);
-
-        lv_obj_t *label = lv_label_create(button);
-        lv_label_set_text(label, labels[i]);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
-        lv_obj_set_width(label, 125);
-        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_align(label, LV_ALIGN_RIGHT_MID, -8, 0);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0);
+        lv_obj_center(icon);
 
         lv_obj_add_event_cb(button, settings_menu_cb, LV_EVENT_CLICKED,
                             (void *)names[i]);
     }
 
     lv_obj_t *back = lv_button_create(screen);
-    lv_obj_set_size(back, 180, 42);
+    lv_obj_set_size(back, 90, 42);
     lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -10);
 
     lv_obj_t *back_icon = lv_label_create(back);
     lv_label_set_text(back_icon, LV_SYMBOL_LEFT);
-    lv_obj_set_style_text_font(back_icon, &lv_font_montserrat_18, 0);
-    lv_obj_align(back_icon, LV_ALIGN_LEFT_MID, 20, 0);
-
-    lv_obj_t *back_label = lv_label_create(back);
-    lv_label_set_text(back_label, "Back");
-    lv_obj_set_style_text_font(back_label, &lv_font_montserrat_16, 0);
-    lv_obj_align(back_label, LV_ALIGN_CENTER, 10, 0);
+    lv_obj_set_style_text_font(back_icon, &lv_font_montserrat_20, 0);
+    lv_obj_center(back_icon);
 
     lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 }
+
 static void build_brightness_page(void)
 {
     clear_screen();
@@ -268,6 +262,7 @@ static void build_launcher(void)
     clear_screen();
 
     lv_obj_t *screen = lv_scr_act();
+    lv_obj_add_event_cb(screen, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
 
     lv_obj_t *title = lv_label_create(screen);
     lv_label_set_text(title, "RoundGames");
@@ -289,18 +284,8 @@ static void build_launcher(void)
     lv_obj_center(game_label);
     lv_obj_add_event_cb(game, launcher_button_cb, LV_EVENT_CLICKED, (void *)"Tic-Tac-Toe");
 
-    lv_obj_t *settings = lv_button_create(screen);
-    lv_obj_set_size(settings, 300, 78);
-    lv_obj_align(settings, LV_ALIGN_CENTER, 0, 65);
-
-    lv_obj_t *settings_label = lv_label_create(settings);
-    lv_label_set_text(settings_label, "Settings");
-    lv_obj_set_style_text_font(settings_label, &lv_font_montserrat_22, 0);
-    lv_obj_center(settings_label);
-    lv_obj_add_event_cb(settings, launcher_button_cb, LV_EVENT_CLICKED, (void *)"Settings");
-
     lv_obj_t *hint = lv_label_create(screen);
-    lv_label_set_text(hint, "Touch a button to test the touchscreen.");
+    lv_label_set_text(hint, "Swipe down for settings");
     lv_obj_set_style_text_font(hint, &lv_font_montserrat_16, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -35);
 }
