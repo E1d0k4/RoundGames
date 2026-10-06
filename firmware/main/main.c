@@ -47,7 +47,38 @@ static bool tone_ready = false;
 static void screensaver_wake_cb(lv_event_t *e);
 
 static void build_launcher(void);
-static void build_settings_menu(void);
+static void build_settings_menu(void)
+{
+    clear_screen();
+    lv_obj_t *screen = lv_scr_act();
+    add_title(screen, language ? "Einstellungen" : "Settings");
+
+    static const char *symbols[] = {
+        LV_SYMBOL_CHARGE, LV_SYMBOL_VOLUME_MAX,
+        LV_SYMBOL_KEYBOARD, LV_SYMBOL_REFRESH,
+        LV_SYMBOL_EYE_OPEN, LV_SYMBOL_FILE
+    };
+    static const char *names[] = {
+        "Brightness", "Sound", "Language",
+        "Clock", "Theme", "Info"
+    };
+
+    for (int i = 0; i < 6; i++) {
+        lv_obj_t *button = lv_button_create(screen);
+        lv_obj_set_size(button, 185, 66);
+        lv_obj_align(button, LV_ALIGN_TOP_LEFT,
+                     38 + ((i % 2) * 205),
+                     68 + ((i / 2) * 76));
+        lv_obj_t *icon = lv_label_create(button);
+        lv_label_set_text(icon, symbols[i]);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0);
+        lv_obj_center(icon);
+        lv_obj_add_event_cb(button, settings_menu_cb, LV_EVENT_CLICKED, (void *)names[i]);
+    }
+
+    add_back_button(screen, true);
+}
+
 static void build_brightness_page(void);
 static void build_volume_page(void);
 static void build_language_page(void);
