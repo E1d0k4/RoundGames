@@ -9,6 +9,7 @@
 
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
+#include "bsp/touch.h"
 
 static const char *TAG = "roundgames";
 
@@ -116,6 +117,9 @@ void app_main(void)
     ESP_LOGI(TAG, "Starting RoundGames");
 
     bsp_display_start();
+
+    // Start at a comfortable brightness instead of full brightness.
+    bsp_display_brightness_set(50);
 
     bsp_display_lock(-1);
     build_launcher();
