@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build:
@@ -44,6 +46,21 @@ jobs:
           name: roundgames-firmware
           path: firmware/roundgames-full.bin
           if-no-files-found: error
+
+      - name: Prepare web installer
+        shell: bash
+        run: |
+          cp firmware/roundgames-full.bin web-installer/roundgames-full.bin
+          test -s web-installer/roundgames-full.bin
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web-installer
+
+      - name: Deploy Pages installer
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Publish installer firmware
         uses: softprops/action-gh-release@v2
