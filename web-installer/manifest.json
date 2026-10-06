@@ -2,15 +2,5 @@
   "name": "RoundGames",
   "version": "nightly",
   "new_install_prompt_erase": true,
-  "builds": [
-    {
-      "chipFamily": "ESP32-S3",
-      "parts": [
-        {
-          "path": "https://github.com/E1d0k4/RoundGames/releases/download/nightly/roundgames-full.bin",
-          "offset": 0
-        }
-      ]
-    }
-  ]
+  "builds": [{"chipFamily":"ESP32-S3","parts":[{"path":"https://github.com/E1d0k4/RoundGames/releases/download/nightly/roundgames-full.bin","offset":0}]}]
 }
