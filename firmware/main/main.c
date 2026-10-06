@@ -35,6 +35,7 @@ static lv_obj_t *dim_value_label = NULL;
 static lv_obj_t *screen_saver = NULL;
 static lv_timer_t *screensaver_timer = NULL;
 static int inactivity_seconds = 0;
+static bool gesture_registered = false;
 
 static void build_launcher(void);
 static void build_settings_menu(void);
@@ -126,8 +127,11 @@ static void activity_reset(void)
     }
 }
 
+static void settings_gesture_cb(lv_event_t *e);
+
 static void clear_screen(void)
 {
+    activity_reset();
     lv_obj_clean(lv_scr_act());
     brightness_slider = NULL;
     brightness_value_label = NULL;
@@ -136,7 +140,10 @@ static void clear_screen(void)
     dim_slider = NULL;
     dim_value_label = NULL;
     apply_theme(lv_scr_act());
-    activity_reset();
+    if (!gesture_registered) {
+        lv_obj_add_event_cb(lv_scr_act(), settings_gesture_cb, LV_EVENT_GESTURE, NULL);
+        gesture_registered = true;
+    }
 }
 
 static void back_button_cb(lv_event_t *e)
@@ -657,7 +664,6 @@ static void build_launcher(void)
     lv_obj_set_style_text_font(hint, &lv_font_montserrat_16, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -35);
 
-    lv_obj_add_event_cb(screen, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
 }
 
 static void show_status(const char *title, const char *message)
