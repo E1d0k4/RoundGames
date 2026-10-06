@@ -16,6 +16,8 @@ static void build_launcher(void);
 static void build_brightness_page(void);
 static int current_brightness = 50;
 static lv_obj_t *brightness_value_label = NULL;
+static lv_obj_t *brightness_slider = NULL;
+static bool brightness_updating = false;
 
 static void clear_screen(void)
 {
@@ -36,32 +38,48 @@ static void brightness_update(int value)
     current_brightness = value;
     bsp_display_brightness_set(current_brightness);
 
+    if (brightness_updating) {
+        return;
+    }
+
+    brightness_updating = true;
+
+    if (brightness_slider != NULL) {
+        lv_slider_set_value(brightness_slider, current_brightness, LV_ANIM_OFF);
+    }
+
     if (brightness_value_label != NULL) {
         lv_label_set_text_fmt(brightness_value_label, "%d%%", current_brightness);
     }
+
+    brightness_updating = false;
 }
 
 static void brightness_slider_cb(lv_event_t *e)
 {
     lv_obj_t *slider = lv_event_get_target(e);
-    brightness_update(lv_slider_get_value(slider));
+    if (!brightness_updating) {
+        brightness_update(lv_slider_get_value(slider));
+    }
 }
 
 static void brightness_minus_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    brightness_update(current_brightness - 5);
+    brightness_update(current_brightness - 10);
 }
 
 static void brightness_plus_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    brightness_update(current_brightness + 5);
+    brightness_update(current_brightness + 10);
 }
 
 static void build_brightness_page(void)
 {
     clear_screen();
+    brightness_slider = NULL;
+    brightness_value_label = NULL;
 
     lv_obj_t *screen = lv_scr_act();
 
@@ -75,7 +93,8 @@ static void build_brightness_page(void)
     lv_obj_set_style_text_font(brightness_value_label, &lv_font_montserrat_24, 0);
     lv_obj_align(brightness_value_label, LV_ALIGN_CENTER, 0, -55);
 
-    lv_obj_t *slider = lv_slider_create(screen);
+    brightness_slider = lv_slider_create(screen);
+    lv_obj_t *slider = brightness_slider;
     lv_obj_set_width(slider, 330);
     lv_slider_set_range(slider, 5, 100);
     lv_slider_set_value(slider, current_brightness, LV_ANIM_OFF);
