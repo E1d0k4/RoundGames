@@ -33,7 +33,7 @@ static void back_button_cb(lv_event_t *e)
 
 static void brightness_update(int value)
 {
-    if (value < 5) value = 5;
+    if (value < 10) value = 10;
     if (value > 100) value = 100;
     current_brightness = value;
     bsp_display_brightness_set(current_brightness);
@@ -96,7 +96,7 @@ static void build_brightness_page(void)
     brightness_slider = lv_slider_create(screen);
     lv_obj_t *slider = brightness_slider;
     lv_obj_set_width(slider, 330);
-    lv_slider_set_range(slider, 5, 100);
+    lv_slider_set_range(slider, 10, 100);
     lv_slider_set_value(slider, current_brightness, LV_ANIM_OFF);
     lv_obj_align(slider, LV_ALIGN_CENTER, 0, 5);
     lv_obj_add_event_cb(slider, brightness_slider_cb, LV_EVENT_VALUE_CHANGED, NULL);
