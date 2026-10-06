@@ -150,6 +150,26 @@ static void build_brightness_page(void)
     add_back_button(s,false);
 }
 
+static void play_test_tone(void)
+{
+    if(sound_muted)return;
+    if(!speaker_codec)speaker_codec=bsp_audio_codec_speaker_init();
+    if(!speaker_codec)return;
+    static int16_t tone[2400]; static bool ready=false;
+    if(!ready){for(int i=0;i<2400;i++)tone[i]=(i%27<13)?6000:-6000;ready=true;}
+    esp_codec_dev_sample_info_t fs={.sample_rate=24000,.channel=1,.bits_per_sample=16};
+    if(esp_codec_dev_open(speaker_codec,&fs)!=ESP_OK)return;
+    esp_codec_dev_set_out_vol(speaker_codec,current_volume);
+    esp_codec_dev_write(speaker_codec,tone,sizeof(tone));
+    esp_codec_dev_close(speaker_codec);
+}
+
+static void volume_test_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    play_test_tone();
+}
+
 static void build_volume_page(void)
 {
     clear_screen();
