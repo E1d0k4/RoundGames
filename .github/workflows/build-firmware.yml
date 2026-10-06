@@ -11,26 +11,38 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.5
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build with ESP-IDF
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v5.5.5
-          target: esp32s3
-          path: firmware
-          command: |
-            idf.py build
-            idf.py merge-bin -o roundgames-full.bin -f raw
+      - name: Build firmware
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py --version
+          idf.py -C firmware set-target esp32s3
+          idf.py -C firmware build
+
+      - name: Create combined firmware image
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -C firmware merge-bin -o firmware/roundgames-full.bin -f raw
+
+      - name: Verify firmware image exists
+        shell: bash
+        run: |
+          test -s firmware/roundgames-full.bin
+          ls -lh firmware/roundgames-full.bin
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: roundgames-firmware
           path: firmware/roundgames-full.bin
+          if-no-files-found: error
 
       - name: Publish installer firmware
         uses: softprops/action-gh-release@v2
