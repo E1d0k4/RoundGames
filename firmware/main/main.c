@@ -297,6 +297,8 @@ static void brightness_plus_cb(lv_event_t *e)
     set_brightness(current_brightness + 10);
 }
 
+static void audio_apply_volume(void) { if (speaker_codec) esp_codec_dev_set_out_vol(speaker_codec, sound_muted ? 0 : current_volume); }
+
 static void set_volume(int value)
 {
     if (value < 0) value = 0;
