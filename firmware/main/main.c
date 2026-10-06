@@ -31,7 +31,7 @@ static void build_settings_menu(void)
         LV_SYMBOL_IMAGE, LV_SYMBOL_VOLUME_MAX,
         LV_SYMBOL_EYE_CLOSE, LV_SYMBOL_SETTINGS,
         LV_SYMBOL_SETTINGS, LV_SYMBOL_IMAGE,
-        LV_SYMBOL_EDIT, LV_SYMBOL_INFO
+        LV_SYMBOL_EDIT, LV_SYMBOL_WIFI
     };
 
     static const char *labels[] = {
@@ -88,135 +88,6 @@ static void build_settings_menu(void)
     lv_obj_set_style_text_font(back_label, &lv_font_montserrat_16, 0);
     lv_obj_align(back_label, LV_ALIGN_CENTER, 10, 0);
 
-    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
-}
-
-static void build_brightness_page(void);
-static void build_settings_menu(void);
-static void show_status(const char *title, const char *message);
-static int current_brightness = 50;
-static lv_obj_t *brightness_value_label = NULL;
-static lv_obj_t *brightness_slider = NULL;
-static bool brightness_updating = false;
-
-static void clear_screen(void)
-{
-    lv_obj_t *screen = lv_scr_act();
-    lv_obj_clean(screen);
-}
-
-static void back_button_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    build_launcher();
-}
-
-static void brightness_update(int value)
-{
-    if (value < 10) value = 10;
-    if (value > 100) value = 100;
-    current_brightness = value;
-    bsp_display_brightness_set(current_brightness);
-
-    if (brightness_updating) {
-        return;
-    }
-
-    brightness_updating = true;
-
-    if (brightness_slider != NULL) {
-        lv_slider_set_value(brightness_slider, current_brightness, LV_ANIM_OFF);
-    }
-
-    if (brightness_value_label != NULL) {
-        lv_label_set_text_fmt(brightness_value_label, "%d%%", current_brightness);
-    }
-
-    brightness_updating = false;
-}
-
-static void brightness_slider_cb(lv_event_t *e)
-{
-    lv_obj_t *slider = lv_event_get_target(e);
-    if (!brightness_updating) {
-        brightness_update(lv_slider_get_value(slider));
-    }
-}
-
-static void brightness_minus_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    brightness_update(current_brightness - 10);
-}
-
-static void brightness_plus_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    brightness_update(current_brightness + 10);
-}
-
-static void settings_menu_cb(lv_event_t *e)
-{
-    const char *name = (const char *)lv_event_get_user_data(e);
-    if (name == NULL) {
-        return;
-    }
-
-    if (strcmp(name, "Brightness") == 0) {
-        build_brightness_page();
-    } else {
-        show_status(name, "This setting will be added in a later phase.");
-    }
-}
-
-static void build_settings_menu(void)
-{
-    clear_screen();
-    brightness_slider = NULL;
-    brightness_value_label = NULL;
-
-    lv_obj_t *screen = lv_scr_act();
-
-    lv_obj_t *title = lv_label_create(screen);
-    lv_label_set_text(title, "Settings");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 30);
-
-    static const char *items[] = {
-        "Brightness", "Sound",
-        "Dimming", "Language",
-        "Clock & Date", "Screensaver",
-        "Theme", "Information"
-    };
-
-    for (int i = 0; i < 8; i++) {
-        int column = i % 2;
-        int row = i / 2;
-
-        lv_obj_t *button = lv_button_create(screen);
-        lv_obj_set_size(button, 185, 58);
-        lv_obj_align(button, LV_ALIGN_TOP_LEFT,
-                     38 + (column * 205),
-                     78 + (row * 65));
-
-        lv_obj_t *label = lv_label_create(button);
-        lv_label_set_text(label, items[i]);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
-        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_width(label, 165);
-        lv_obj_center(label);
-
-        lv_obj_add_event_cb(button, settings_menu_cb, LV_EVENT_CLICKED,
-                            (void *)items[i]);
-    }
-
-    lv_obj_t *back = lv_button_create(screen);
-    lv_obj_set_size(back, 180, 48);
-    lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -18);
-
-    lv_obj_t *back_label = lv_label_create(back);
-    lv_label_set_text(back_label, "Back");
-    lv_obj_center(back_label);
     lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 }
 
