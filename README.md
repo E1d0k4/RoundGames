@@ -51,11 +51,20 @@ RoundGames is being built in layers:
 
 1. Hardware abstraction / board bring-up
 2. Touch + display UI framework
-3. RoundGames launcher
-4. Game interface/API
-5. Tic-Tac-Toe
-6. Web installer + release pipeline
-7. Additional games
+3. System UI foundation (Quick Controls + dedicated settings pages)
+4. RoundGames launcher
+5. Game interface/API
+6. Tic-Tac-Toe
+7. Web installer + release pipeline
+8. Additional games
+
+## System UI
+
+The system UI is deliberately hierarchical for the 466 × 466 display. A top-edge swipe down opens Quick Controls, which contains categories only. Each category opens its own dedicated page for controls such as brightness, volume/mute, dimming, language, clock/date, screensaver, themes and device/game information.
+
+Normal brightness and dimmed brightness are separate settings. User preferences are persisted centrally, and games do not access hardware settings directly. Initial localization targets German, English and Dutch.
+
+See [`docs/system-ui.md`](docs/system-ui.md) for the interaction specification.
 
 ## Installer
 
