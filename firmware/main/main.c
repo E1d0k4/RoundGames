@@ -548,7 +548,7 @@ static void build_clock_page(void)
 
     lv_obj_t *clock=lv_label_create(s);
     lv_label_set_text(clock,buf);
-    lv_obj_set_style_text_font(clock,&lv_font_montserrat_36,0);
+    lv_obj_set_style_text_font(clock,&lv_font_montserrat_24,0);
     lv_obj_align(clock,LV_ALIGN_TOP_MID,0,75);
 
     lv_obj_t *mh=lv_button_create(s); lv_obj_set_size(mh,170,55);
