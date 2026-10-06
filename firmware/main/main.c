@@ -29,8 +29,8 @@ static void build_settings_menu(void)
 
     static const char *symbols[] = {
         LV_SYMBOL_IMAGE, LV_SYMBOL_VOLUME_MAX,
-        LV_SYMBOL_MOON, LV_SYMBOL_EYE_OPEN,
-        LV_SYMBOL_TIME, LV_SYMBOL_IMAGE,
+        LV_SYMBOL_EYE_CLOSE, LV_SYMBOL_SETTINGS,
+        LV_SYMBOL_SETTINGS, LV_SYMBOL_IMAGE,
         LV_SYMBOL_EDIT, LV_SYMBOL_INFO
     };
 
