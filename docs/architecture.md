@@ -186,3 +186,94 @@ The first target is:
 - Waveshare ESP32-S3-Touch-AMOLED-1.75, standard version
 
 Board variants such as 1.75-B and 1.75-G should not silently be treated as identical. Variant-specific support can be added later.
+
+
+## System UI and interaction model
+
+The system UI is intentionally hierarchical for the 466x466 display. The Quick Controls page contains categories and compact current values only; individual controls live on dedicated full-screen subpages.
+
+### Reserved system gesture
+
+A swipe from the top edge downward opens Quick Controls. This gesture is reserved by the platform and is dispatched before active-game input.
+
+Input priority:
+
+1. system/emergency controls where applicable
+2. top-edge swipe-down
+3. screensaver wake/exit
+4. system UI controls
+5. active game input
+
+### Quick Controls
+
+Quick Controls contains:
+
+- Brightness
+- Sound
+- Dimming
+- Language
+- Clock & Date
+- Screensaver
+- Theme
+- Information
+
+Tapping a category opens its own page. For example, Brightness opens a page with a slider plus large +/- controls; Sound opens a volume page with a slider and mute/unmute action.
+
+### Settings
+
+Settings are owned by a central Settings Service and persisted through NVS. UI code and games never access NVS directly.
+
+Initial settings include:
+
+- normal brightness
+- volume and mute
+- dimming enabled, timeout and dimming brightness
+- language
+- 12/24-hour clock preference
+- NTP synchronization
+- screensaver enabled, timeout and theme
+- system theme
+
+### Localization
+
+Initial platform languages:
+
+- German
+- English
+- Dutch
+
+All user-facing system strings go through localization. Missing translations fall back to English.
+
+### Clock, dimming and screensaver
+
+The PCF85063 is accessed through a shared RTC service. Optional NTP synchronization is handled by the platform.
+
+Dimming has its own configurable brightness, independent from normal brightness. The screensaver starts after configurable inactivity and can use multiple clock/screensaver themes. Waking the screensaver restores the previous application without resetting game state.
+
+### Information page
+
+The Information page can show:
+
+- RoundGames and firmware version
+- Git commit and build date
+- board target
+- ESP-IDF and LVGL versions
+- Flash and PSRAM information
+- installed game IDs and versions
+
+### Service boundaries
+
+The intended platform components are:
+
+- system_ui
+- settings
+- input
+- localization
+- rtc_service
+- audio_service
+- display_service
+- screensaver
+- theme
+- version
+
+Hardware access stays behind these services. This keeps individual games small and prevents settings, gestures or board-specific code from leaking into game implementations.
