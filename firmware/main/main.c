@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -11,10 +12,18 @@
 
 static const char *TAG = "roundgames";
 
+static void build_launcher(void);
+
 static void clear_screen(void)
 {
     lv_obj_t *screen = lv_scr_act();
     lv_obj_clean(screen);
+}
+
+static void back_button_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    build_launcher();
 }
 
 static void show_status(const char *title, const char *message)
@@ -31,8 +40,8 @@ static void show_status(const char *title, const char *message)
     lv_obj_t *message_label = lv_label_create(screen);
     lv_label_set_text(message_label, message);
     lv_obj_set_style_text_font(message_label, &lv_font_montserrat_18, 0);
-    lv_label_set_width(message_label, 380);
-    lv_label_set_style_text_align(message_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(message_label, 380);
+    lv_obj_set_style_text_align(message_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(message_label, LV_ALIGN_CENTER, 0, -10);
 
     lv_obj_t *back = lv_button_create(screen);
@@ -43,11 +52,7 @@ static void show_status(const char *title, const char *message)
     lv_label_set_text(back_label, "Back");
     lv_obj_center(back_label);
 
-    lv_obj_add_event_cb(back, [](lv_event_t *e) {
-        LV_UNUSED(e);
-        // The launcher is rebuilt below.
-        clear_screen();
-    }, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 }
 
 static void launcher_button_cb(lv_event_t *e)
@@ -76,7 +81,7 @@ static void build_launcher(void)
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 55);
 
     lv_obj_t *subtitle = lv_label_create(screen);
-    lv_label_set_text(subtitle, "Phase 1 • display + touch test");
+    lv_label_set_text(subtitle, "Phase 1 - display + touch test");
     lv_obj_set_style_text_font(subtitle, &lv_font_montserrat_16, 0);
     lv_obj_align(subtitle, LV_ALIGN_TOP_MID, 0, 95);
 
