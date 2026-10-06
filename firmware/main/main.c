@@ -34,7 +34,7 @@ static void show_status(const char *title, const char *message)
 
     lv_obj_t *title_label = lv_label_create(screen);
     lv_label_set_text(title_label, title);
-    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_26, 0);
+    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_24, 0);
     lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 70);
 
     lv_obj_t *message_label = lv_label_create(screen);
@@ -77,7 +77,7 @@ static void build_launcher(void)
 
     lv_obj_t *title = lv_label_create(screen);
     lv_label_set_text(title, "RoundGames");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_26, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 55);
 
     lv_obj_t *subtitle = lv_label_create(screen);
