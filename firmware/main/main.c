@@ -15,6 +15,7 @@ static const char *TAG = "roundgames";
 static void build_launcher(void);
 static void build_brightness_page(void);
 static void build_settings_menu(void);
+static void show_status(const char *title, const char *message);
 static int current_brightness = 50;
 static lv_obj_t *brightness_value_label = NULL;
 static lv_obj_t *brightness_slider = NULL;
