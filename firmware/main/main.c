@@ -523,6 +523,7 @@ static void build_language_page(void)
     add_title(s,tr("Language","Sprache"));
 
     lv_obj_t *de=lv_button_create(s); lv_obj_set_size(de,170,70);
+    lv_obj_set_style_bg_color(de,lv_color_hex(0x30343B),LV_PART_MAIN);
     lv_obj_align(de,LV_ALIGN_CENTER,-95,0);
     lv_obj_t *dl=lv_label_create(de);
     lv_label_set_text(dl,"Deutsch"); lv_obj_center(dl);
@@ -530,6 +531,7 @@ static void build_language_page(void)
     lv_obj_add_event_cb(de,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
 
     lv_obj_t *en=lv_button_create(s); lv_obj_set_size(en,170,70);
+    lv_obj_set_style_bg_color(en,lv_color_hex(0x30343B),LV_PART_MAIN);
     lv_obj_align(en,LV_ALIGN_CENTER,95,0);
     lv_obj_t *el=lv_label_create(en);
     lv_label_set_text(el,"English"); lv_obj_center(el);
@@ -584,6 +586,7 @@ static void build_theme_page(void)
     add_title(s,tr("Theme","Darstellung"));
 
     lv_obj_t *dark=lv_button_create(s); lv_obj_set_size(dark,170,70);
+    lv_obj_set_style_bg_color(dark,lv_color_hex(0x30343B),LV_PART_MAIN);
     lv_obj_align(dark,LV_ALIGN_CENTER,-95,0);
     lv_obj_t *dt=lv_label_create(dark);
     lv_label_set_text(dt,"Dark"); lv_obj_center(dt);
@@ -591,6 +594,7 @@ static void build_theme_page(void)
     lv_obj_add_event_cb(dark,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
 
     lv_obj_t *light=lv_button_create(s); lv_obj_set_size(light,170,70);
+    lv_obj_set_style_bg_color(light,lv_color_hex(0x30343B),LV_PART_MAIN);
     lv_obj_align(light,LV_ALIGN_CENTER,95,0);
     lv_obj_t *lt=lv_label_create(light);
     lv_label_set_text(lt,"Light"); lv_obj_center(lt);
