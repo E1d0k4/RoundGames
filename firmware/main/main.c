@@ -615,6 +615,7 @@ static void screensaver_tick(lv_timer_t *timer)
     lv_obj_set_style_bg_color(screen_saver, lv_color_hex(0x000000), 0);
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *clock = lv_label_create(screen_saver);
     time_t now; time(&now);
@@ -626,6 +627,12 @@ static void screensaver_tick(lv_timer_t *timer)
     lv_obj_set_style_text_font(clock, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(clock);
+}
+
+static void screensaver_wake_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    activity_reset();
 }
 
 static void launcher_button_cb(lv_event_t *e)
