@@ -14,6 +14,84 @@ static const char *TAG = "roundgames";
 
 static void build_launcher(void);
 static void build_brightness_page(void);
+static void build_settings_menu(void)
+{
+    clear_screen();
+    brightness_slider = NULL;
+    brightness_value_label = NULL;
+
+    lv_obj_t *screen = lv_scr_act();
+
+    lv_obj_t *title = lv_label_create(screen);
+    lv_label_set_text(title, "Settings");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 25);
+
+    static const char *symbols[] = {
+        LV_SYMBOL_IMAGE, LV_SYMBOL_VOLUME_MAX,
+        LV_SYMBOL_MOON, LV_SYMBOL_EYE_OPEN,
+        LV_SYMBOL_TIME, LV_SYMBOL_IMAGE,
+        LV_SYMBOL_EDIT, LV_SYMBOL_INFO
+    };
+
+    static const char *labels[] = {
+        "Brightness", "Sound",
+        "Dimming", "Language",
+        "Clock", "Screensaver",
+        "Theme", "Info"
+    };
+
+    static const char *names[] = {
+        "Brightness", "Sound",
+        "Dimming", "Language",
+        "Clock & Date", "Screensaver",
+        "Theme", "Information"
+    };
+
+    for (int i = 0; i < 8; i++) {
+        int column = i % 2;
+        int row = i / 2;
+
+        lv_obj_t *button = lv_button_create(screen);
+        lv_obj_set_size(button, 185, 58);
+        lv_obj_align(button, LV_ALIGN_TOP_LEFT,
+                     38 + (column * 205),
+                     68 + (row * 62));
+
+        lv_obj_t *icon = lv_label_create(button);
+        lv_label_set_text(icon, symbols[i]);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+        lv_obj_align(icon, LV_ALIGN_LEFT_MID, 18, 0);
+
+        lv_obj_t *label = lv_label_create(button);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_set_width(label, 125);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(label, LV_ALIGN_RIGHT_MID, -8, 0);
+
+        lv_obj_add_event_cb(button, settings_menu_cb, LV_EVENT_CLICKED,
+                            (void *)names[i]);
+    }
+
+    lv_obj_t *back = lv_button_create(screen);
+    lv_obj_set_size(back, 180, 42);
+    lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -10);
+
+    lv_obj_t *back_icon = lv_label_create(back);
+    lv_label_set_text(back_icon, LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_font(back_icon, &lv_font_montserrat_18, 0);
+    lv_obj_align(back_icon, LV_ALIGN_LEFT_MID, 20, 0);
+
+    lv_obj_t *back_label = lv_label_create(back);
+    lv_label_set_text(back_label, "Back");
+    lv_obj_set_style_text_font(back_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(back_label, LV_ALIGN_CENTER, 10, 0);
+
+    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
+}
+
+static void build_brightness_page(void);
 static void build_settings_menu(void);
 static void show_status(const char *title, const char *message);
 static int current_brightness = 50;
