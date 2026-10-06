@@ -1,11 +1,6 @@
 name: Deploy web installer
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "web-installer/**"
-      - ".github/workflows/deploy-installer.yml"
   workflow_dispatch:
 
 permissions:
