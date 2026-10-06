@@ -20,7 +20,7 @@
 static const char *TAG = "roundgames";
 
 static int current_brightness = 50;
-static int current_volume = 70;
+static int current_volume = 70; // audio test
 static int dim_brightness = 10;
 static int dim_timeout = 30;
 static int language = 0;       // 0 = English, 1 = German
