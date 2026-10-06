@@ -40,6 +40,7 @@ static lv_timer_t *screensaver_timer = NULL;
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 static esp_codec_dev_handle_t speaker_codec = NULL;
+static bool audio_initialized = false;
 
 static void screensaver_wake_cb(lv_event_t *e);
 
@@ -455,7 +456,7 @@ static void build_brightness_page(void)
 static void play_test_tone(void)
 {
     if(sound_muted)return;
-    if(!speaker_codec)speaker_codec=bsp_audio_codec_speaker_init();
+    if(!audio_initialized){if(bsp_audio_init(NULL)!=ESP_OK)return;audio_initialized=true;} if(!speaker_codec)speaker_codec=bsp_audio_codec_speaker_init();
     if(!speaker_codec)return;
     static int16_t tone[2400]; static bool ready=false;
     if(!ready){for(int i=0;i<2400;i++)tone[i]=(i%27<13)?6000:-6000;ready=true;}
