@@ -37,6 +37,8 @@ static lv_timer_t *screensaver_timer = NULL;
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 
+static void screensaver_wake_cb(lv_event_t *e);
+
 static void build_launcher(void);
 static void build_settings_menu(void);
 static void build_brightness_page(void);
