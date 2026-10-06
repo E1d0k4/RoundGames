@@ -29,7 +29,8 @@ jobs:
         shell: bash
         run: |
           . "$IDF_PATH/export.sh"
-          idf.py -C firmware merge-bin -o firmware/roundgames-full.bin -f raw
+          idf.py -C firmware merge-bin -o roundgames-full.bin -f raw
+          mv firmware/build/roundgames-full.bin firmware/roundgames-full.bin
 
       - name: Verify firmware image exists
         shell: bash
