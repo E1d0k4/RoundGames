@@ -101,7 +101,7 @@ static void load_settings(void)
     screensaver_enabled = data.screensaver_enabled;
     favorite_games = data.favorite_games;
 
-    if (theme < 0 || theme > 3) theme = 0;
+    if (theme_get() < 0 || theme_get() > 3) theme_set(0);
     if (current_brightness < 10) current_brightness = 10;
     if (current_brightness > 100) current_brightness = 100;
     if (current_volume < 0) current_volume = 0;
