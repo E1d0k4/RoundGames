@@ -65,7 +65,7 @@ static void save_settings(void)
         .language = language_get(),
         .theme = theme_get(),
         .muted = sound_muted,
-        .screensaver_enabled = !screensaver_is_active(),
+        .screensaver_enabled = screensaver_is_enabled(),
         .favorite_games = favorite_games
     };
     data.epoch = clock_now();
@@ -202,7 +202,7 @@ static void theme_cb(lv_event_t *e) { theme_set((int)(intptr_t)lv_event_get_user
 static void screensaver_toggle_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    screensaver_set_enabled(!screensaver_is_active());
+    screensaver_set_enabled(!screensaver_is_enabled());
     save_settings();
     build_brightness_page();
 }
@@ -342,7 +342,7 @@ static void build_brightness_page(void)
     lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,48,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-42,226); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
 
     lv_obj_t *ss=lv_button_create(s); lv_obj_set_size(ss,175,52); lv_obj_align(ss,LV_ALIGN_TOP_LEFT,48,302); style_option_button(ss,screensaver_enabled);
-    lv_obj_t *ssl=lv_label_create(ss); lv_label_set_text_fmt(ssl,"%s: %s",tr("Screen","Bildschirm"),screensaver_is_active() ? "ON":"OFF"); lv_obj_center(ssl); lv_obj_add_event_cb(ss,screensaver_toggle_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *ssl=lv_label_create(ss); lv_label_set_text_fmt(ssl,"%s: %s",tr("Screen","Bildschirm"),screensaver_is_enabled() ? "ON":"OFF"); lv_obj_center(ssl); lv_obj_add_event_cb(ss,screensaver_toggle_cb,LV_EVENT_CLICKED,NULL);
 
     lv_obj_t *to=lv_button_create(s); lv_obj_set_size(to,175,52); lv_obj_align(to,LV_ALIGN_TOP_RIGHT,-48,302); style_option_button(to,false);
     lv_obj_t *tol=lv_label_create(to); lv_label_set_text_fmt(tol,"%s: %ds",tr("After","Nach"),dim_timeout); lv_obj_center(tol); lv_obj_add_event_cb(to,dim_time_cb,LV_EVENT_CLICKED,NULL);
