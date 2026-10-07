@@ -76,7 +76,7 @@ void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
             lv_label_set_text(icon, LV_SYMBOL_PLAY);
             lv_obj_set_style_text_color(icon, lv_color_hex(0x7C5CFF), 0);
         }
-        lv_obj_set_style_text_font(icon, &lv_font_montserrat_32, 0);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0);
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 10);
 
         lv_obj_t *label = lv_label_create(button);
