@@ -763,7 +763,8 @@ static void build_launcher(void)
         lv_obj_center(label);
         lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
                             (void *)(intptr_t)game_index);
-        lv_obj_add_event_cb(button, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
+        /* Let launcher swipes reach the screen instead of being handled by the app button. */
+        lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
     }
 
     for (int i = 0; i < LAUNCHER_PAGE_COUNT; i++) {
@@ -776,7 +777,7 @@ static void build_launcher(void)
                                                      : lv_color_hex(0x60656D), 0);
         lv_obj_set_style_border_width(dot, 0, 0);
         lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_event_cb(dot, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
+        lv_obj_add_flag(dot, LV_OBJ_FLAG_GESTURE_BUBBLE);
         lv_obj_align(dot, LV_ALIGN_BOTTOM_MID,
                      (i - (LAUNCHER_PAGE_COUNT - 1) / 2) * 18, -18);
     }
