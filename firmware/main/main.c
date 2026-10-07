@@ -373,7 +373,12 @@ static void play_test_tone_blocking(int requested_volume)
 
     esp_codec_dev_set_out_vol(speaker_codec, volume_to_codec(requested_volume));
 
-    static int16_t tone[2205];
+    /*
+     * The Waveshare speaker path expects stereo PCM.  Mono happened to
+     * compile, but on the board it produces no audible output. Keep the
+     * tone short and stereo so the UI stays responsive.
+     */
+    static int16_t tone[2205 * 2];
     static bool ready = false;
     if (!ready) {
         for (int i = 0; i < 2205; i++) {
@@ -383,14 +388,16 @@ static void play_test_tone_blocking(int requested_volume)
             if (t > 0.070f) envelope = (0.100f - t) / 0.030f;
             if (envelope < 0.0f) envelope = 0.0f;
             float sample = sinf(2.0f * 3.14159265f * 1200.0f * t);
-            tone[i] = (int16_t)(sample * envelope * 9000.0f);
+            int16_t value = (int16_t)(sample * envelope * 9000.0f);
+            tone[i * 2] = value;
+            tone[i * 2 + 1] = value;
         }
         ready = true;
     }
 
     esp_codec_dev_sample_info_t fs = {
         .sample_rate = 22050,
-        .channel = 1,
+        .channel = 2,
         .bits_per_sample = 16
     };
 
