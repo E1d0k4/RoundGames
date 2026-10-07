@@ -589,7 +589,10 @@ static void screensaver_tick(lv_timer_t *timer)
     lv_obj_t *screen = lv_scr_act();
     screen_saver = lv_obj_create(screen);
     lv_obj_set_size(screen_saver, LV_PCT(100), LV_PCT(100));
+    /* The screensaver is an opaque full-screen layer: menus and controls
+     * underneath must not remain visible while the clock is shown. */
     lv_obj_set_style_bg_color(screen_saver, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(screen_saver, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
