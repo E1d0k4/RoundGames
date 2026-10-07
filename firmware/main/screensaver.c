@@ -5,6 +5,7 @@
 #include "theme.h"
 
 static bool enabled = true;
+static bool game_active = false;
 static bool active = false;
 static int normal_brightness = 50;
 static int dim_brightness = 10;
@@ -48,6 +49,14 @@ void screensaver_set_timeout(int seconds)
     timeout_seconds = seconds;
 }
 
+void screensaver_set_game_active(bool active)
+{
+    game_active = active;
+    if (active) {
+        screensaver_activity_reset();
+    }
+}
+
 void screensaver_activity_reset(void)
 {
     inactivity_seconds = 0;
@@ -85,7 +94,7 @@ void screensaver_tick(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
 
-    if (!enabled) return;
+    if (!enabled || game_active) return;
 
     if (active) {
         if (screensaver_clock) {
