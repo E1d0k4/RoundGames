@@ -483,6 +483,7 @@ void app_main(void)
     screensaver_init();
     input_init();
     input_set_actions(gesture_bottom_cb, gesture_left_cb, gesture_right_cb);
+    input_set_activity_callback(activity_reset);
     load_settings();
     launcher_init(8);
     display_init();
