@@ -150,7 +150,8 @@ static void apply_theme(lv_obj_t *screen)
         lv_obj_set_style_bg_color(theme_effects[i], lv_color_hex(colors[i]), 0);
         lv_obj_set_style_bg_opa(theme_effects[i], LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(theme_effects[i], 0, 0);
-        lv_obj_clear_flag(theme_effects[i], LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_clear_flag(theme_effects[i], LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_move_background(theme_effects[i]);
 
         if (theme == 2) {
             lv_obj_set_size(theme_effects[i], 190, 190);
@@ -665,6 +666,7 @@ static void screensaver_tick(lv_timer_t *timer)
             lv_obj_set_style_border_width(theme_effects[i], 0, 0);
             lv_obj_clear_flag(theme_effects[i],
                                LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_move_background(theme_effects[i]);
             if (theme == 2) {
                 lv_obj_set_size(theme_effects[i], 190, 190);
                 lv_obj_set_pos(theme_effects[i],
@@ -761,6 +763,7 @@ static void build_launcher(void)
         lv_obj_center(label);
         lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
                             (void *)(intptr_t)game_index);
+        lv_obj_add_event_cb(button, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
     }
 
     for (int i = 0; i < LAUNCHER_PAGE_COUNT; i++) {
@@ -772,6 +775,8 @@ static void build_launcher(void)
                                   i == launcher_page ? lv_color_hex(0x20A050)
                                                      : lv_color_hex(0x60656D), 0);
         lv_obj_set_style_border_width(dot, 0, 0);
+        lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(dot, settings_gesture_cb, LV_EVENT_GESTURE, NULL);
         lv_obj_align(dot, LV_ALIGN_BOTTOM_MID,
                      (i - (LAUNCHER_PAGE_COUNT - 1) / 2) * 18, -18);
     }
