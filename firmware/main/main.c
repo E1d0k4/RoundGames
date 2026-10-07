@@ -8,8 +8,7 @@
 #include "nvs_flash.h"
 #include "lvgl.h"
 
-#include "bsp/esp-bsp.h"
-#include "bsp/display.h"
+#include "display.h"
 #include "audio.h"
 #include "language.h"
 #include "settings.h"
@@ -145,7 +144,7 @@ static void set_brightness(int value)
 {
     if (value < 10) value = 10;
     if (value > 100) value = 100;
-    current_brightness = value; bsp_display_brightness_set(value);
+    current_brightness = value; display_set_brightness(value);
     screensaver_set_normal_brightness(value);
     if (brightness_slider) lv_slider_set_value(brightness_slider, value, LV_ANIM_OFF);
     if (brightness_value_label) lv_label_set_text_fmt(brightness_value_label, "%d%%", value);
@@ -524,14 +523,14 @@ void app_main(void)
     if(nvs_ret==ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret==ESP_ERR_NVS_NEW_VERSION_FOUND){nvs_flash_erase();nvs_flash_init();}
     screensaver_init();
     load_settings();
-    bsp_display_start();
-    bsp_display_brightness_set(current_brightness);
-    bsp_display_lock(-1);
+    display_init();
+    display_set_brightness(current_brightness);
+    display_lock();
     build_launcher();
 
     audio_init();
     lv_timer_create(screensaver_tick, 100, NULL);
     theme_animation_timer=lv_timer_create(theme_animation_tick,33,NULL);
-    bsp_display_unlock();
+    display_unlock();
     ESP_LOGI(TAG,"RoundGames Phase 3 UI ready");
 }
