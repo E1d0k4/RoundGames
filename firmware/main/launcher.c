@@ -68,10 +68,21 @@ void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
         lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205, 82 + row * 145);
         lv_obj_set_style_bg_color(button, lv_color_hex(0x30343B), LV_PART_MAIN);
 
+        lv_obj_t *icon = lv_label_create(button);
+        if (game_index == 0) {
+            lv_label_set_text(icon, "X   O");
+            lv_obj_set_style_text_color(icon, lv_color_hex(0x35E0FF), 0);
+        } else {
+            lv_label_set_text(icon, LV_SYMBOL_PLAY);
+            lv_obj_set_style_text_color(icon, lv_color_hex(0x7C5CFF), 0);
+        }
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_32, 0);
+        lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 10);
+
         lv_obj_t *label = lv_label_create(button);
         lv_label_set_text(label, game_names[game_index]);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-        lv_obj_center(label);
+        lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -12);
         lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
                             (void *)(intptr_t)game_index);
         lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
