@@ -146,7 +146,7 @@ static void cell_cb(lv_event_t *e)
     set_status("Your turn: X", "Du bist dran: X");
 }
 
-static void back_cb(lv_event_t *e)
+static void back_button_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
     if (back_callback) back_callback();
@@ -212,5 +212,5 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
     lv_label_set_text(back_label, LV_SYMBOL_LEFT);
     lv_obj_set_style_text_font(back_label, &lv_font_montserrat_20, 0);
     lv_obj_center(back_label);
-    lv_obj_add_event_cb(back, back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 }
