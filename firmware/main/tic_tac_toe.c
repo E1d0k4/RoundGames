@@ -200,20 +200,26 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
     const int gap = 8;
     const int start_x = -136;
     const int start_y = 92;
+    const int cell = 88;
+    const int step = size + gap;
 
+    /* Transparent touch targets: the board itself is now a neon-green lightning cage. */
     for (int row = 0; row < BOARD_SIZE; row++) {
         for (int col = 0; col < BOARD_SIZE; col++) {
             lv_obj_t *button = lv_button_create(screen);
             lv_obj_set_size(button, size, size);
             lv_obj_align(button, LV_ALIGN_TOP_MID,
-                         start_x + col * (size + gap),
-                         start_y + row * (size + gap));
-            lv_obj_set_style_bg_color(button, lv_color_hex(0x30343B), LV_PART_MAIN);
+                         start_x + col * step,
+                         start_y + row * step);
+            lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_set_style_border_width(button, 0, LV_PART_MAIN);
+            lv_obj_set_style_shadow_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
             lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
             lv_obj_t *label = lv_label_create(button);
             lv_label_set_text(label, "");
-            lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_32, 0);
+            lv_obj_set_style_text_color(label, lv_color_white(), 0);
             lv_obj_center(label);
 
             board_buttons[row][col] = button;
@@ -221,6 +227,55 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
                                 (void *)(intptr_t)(row * BOARD_SIZE + col));
         }
     }
+
+    /*
+     * Jagged green neon lines form the 3x3 cage instead of nine solid fields.
+     * The small zig-zags intentionally make the grid look like energized lightning.
+     */
+    const int left = 44;
+    const int top = start_y;
+    const int right = left + 3 * cell + 2 * gap;
+    const int bottom = top + 3 * cell + 2 * gap;
+
+    static lv_point_precise_t v1[] = {{left + cell + gap / 2, top - 4},
+                                       {left + cell + gap / 2 + 4, top + 18},
+                                       {left + cell + gap / 2 - 3, top + 39},
+                                       {left + cell + gap / 2 + 5, top + 60},
+                                       {left + cell + gap / 2 - 2, top + 82},
+                                       {left + cell + gap / 2 + 3, bottom + 4}};
+    static lv_point_precise_t v2[] = {{left + 2 * cell + gap + gap / 2, top - 4},
+                                       {left + 2 * cell + gap + gap / 2 - 4, top + 22},
+                                       {left + 2 * cell + gap + gap / 2 + 3, top + 44},
+                                       {left + 2 * cell + gap + gap / 2 - 5, top + 66},
+                                       {left + 2 * cell + gap + gap / 2 + 2, top + 88},
+                                       {left + 2 * cell + gap + gap / 2 - 3, bottom + 4}};
+    static lv_point_precise_t h1[] = {{left - 4, top + cell + gap / 2},
+                                       {left + 24, top + cell + gap / 2 - 4},
+                                       {left + 52, top + cell + gap / 2 + 3},
+                                       {left + 80, top + cell + gap / 2 - 3},
+                                       {left + 108, top + cell + gap / 2 + 4},
+                                       {left + 136, top + cell + gap / 2 - 2},
+                                       {left + 164, top + cell + gap / 2 + 3},
+                                       {left + 192, top + cell + gap / 2 - 3},
+                                       {left + 220, top + cell + gap / 2 + 3},
+                                       {left + 260, top + cell + gap / 2 - 2},
+                                       {right + 4, top + cell + gap / 2}};
+    static lv_point_precise_t h2[] = {{left - 4, top + 2 * cell + gap + gap / 2},
+                                       {left + 24, top + 2 * cell + gap + gap / 2 + 4},
+                                       {left + 52, top + 2 * cell + gap + gap / 2 - 3},
+                                       {left + 80, top + 2 * cell + gap + gap / 2 + 3},
+                                       {left + 108, top + 2 * cell + gap + gap / 2 - 4},
+                                       {left + 136, top + 2 * cell + gap + gap / 2 + 2},
+                                       {left + 164, top + 2 * cell + gap + gap / 2 - 3},
+                                       {left + 192, top + 2 * cell + gap + gap / 2 + 3},
+                                       {left + 220, top + 2 * cell + gap + gap / 2 - 3},
+                                       {left + 260, top + 2 * cell + gap + gap / 2 + 2},
+                                       {right + 4, top + 2 * cell + gap + gap / 2}};
+
+    add_neon_line(screen, v1, sizeof(v1) / sizeof(v1[0]));
+    add_neon_line(screen, v2, sizeof(v2) / sizeof(v2[0]));
+    add_neon_line(screen, h1, sizeof(h1) / sizeof(h1[0]));
+    add_neon_line(screen, h2, sizeof(h2) / sizeof(h2[0]));
 
     /*
      * The action buttons stay hidden to give the board maximum space.
