@@ -54,6 +54,7 @@ static void build_clock_page(void);
 static void build_theme_page(void);
 static void build_info_page(void);
 static void show_status(const char *title, const char *message);
+static void play_test_tone(void);
 
 static const char *tr(const char *en, const char *de) { return language ? de : en; }
 
