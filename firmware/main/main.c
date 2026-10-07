@@ -25,7 +25,6 @@ static int dim_brightness = 10;
 static int dim_timeout = 30;
 
 static bool sound_muted = false;
-static bool screensaver_active = false;
 static bool launcher_active = true;
 static int launcher_page = 0;
 static uint32_t favorite_games = 1u;
@@ -39,7 +38,6 @@ static lv_obj_t *dim_value_label = NULL;
 static lv_timer_t *theme_animation_timer = NULL;
 
 
-static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 
 static void build_launcher(void);
@@ -82,7 +80,7 @@ static void load_settings(void)
         .language = language_get(),
         .theme = theme_get(),
         .muted = sound_muted,
-        .screensaver_enabled = screensaver_enabled,
+        .screensaver_enabled = screensaver_is_enabled(),
         .favorite_games = favorite_games
     };
     settings_load(&data);
@@ -94,7 +92,7 @@ static void load_settings(void)
     language_set(data.language);
     theme_set(data.theme);
     sound_muted = data.muted;
-    screensaver_set_enabled(data.!screensaver_is_active());
+    screensaver_set_enabled(data.screensaver_enabled);
     screensaver_set_normal_brightness(current_brightness);
     screensaver_set_dim_brightness(dim_brightness);
     screensaver_set_timeout(dim_timeout);
@@ -147,7 +145,8 @@ static void set_brightness(int value)
 {
     if (value < 10) value = 10;
     if (value > 100) value = 100;
-    current_brightness = value; bsp_display_brightness_set(value);\n    screensaver_set_normal_brightness(value);
+    current_brightness = value; bsp_display_brightness_set(value);
+    screensaver_set_normal_brightness(value);
     if (brightness_slider) lv_slider_set_value(brightness_slider, value, LV_ANIM_OFF);
     if (brightness_value_label) lv_label_set_text_fmt(brightness_value_label, "%d%%", value);
     save_settings(); activity_reset();
@@ -341,7 +340,7 @@ static void build_brightness_page(void)
     lv_obj_t *dm=lv_button_create(s); lv_obj_set_size(dm,48,42); lv_obj_align(dm,LV_ALIGN_TOP_LEFT,42,226); style_option_button(dm,false); lv_obj_t *dml=lv_label_create(dm); lv_label_set_text(dml,"-"); lv_obj_center(dml); lv_obj_add_event_cb(dm,dim_minus_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,48,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-42,226); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
 
-    lv_obj_t *ss=lv_button_create(s); lv_obj_set_size(ss,175,52); lv_obj_align(ss,LV_ALIGN_TOP_LEFT,48,302); style_option_button(ss,screensaver_enabled);
+    lv_obj_t *ss=lv_button_create(s); lv_obj_set_size(ss,175,52); lv_obj_align(ss,LV_ALIGN_TOP_LEFT,48,302); style_option_button(ss,screensaver_is_enabled());
     lv_obj_t *ssl=lv_label_create(ss); lv_label_set_text_fmt(ssl,"%s: %s",tr("Screen","Bildschirm"),screensaver_is_enabled() ? "ON":"OFF"); lv_obj_center(ssl); lv_obj_add_event_cb(ss,screensaver_toggle_cb,LV_EVENT_CLICKED,NULL);
 
     lv_obj_t *to=lv_button_create(s); lv_obj_set_size(to,175,52); lv_obj_align(to,LV_ALIGN_TOP_RIGHT,-48,302); style_option_button(to,false);
@@ -523,6 +522,7 @@ void app_main(void)
     ESP_LOGI(TAG,"Starting RoundGames Phase 3");
     esp_err_t nvs_ret=nvs_flash_init();
     if(nvs_ret==ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret==ESP_ERR_NVS_NEW_VERSION_FOUND){nvs_flash_erase();nvs_flash_init();}
+    screensaver_init();
     load_settings();
     bsp_display_start();
     bsp_display_brightness_set(current_brightness);
