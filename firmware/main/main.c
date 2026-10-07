@@ -530,7 +530,7 @@ void app_main(void)
     build_launcher();
 
     audio_init();
-    screensaver_init();\n    screensaver_set_enabled(true);\n    screensaver_set_normal_brightness(current_brightness);\n    screensaver_set_dim_brightness(dim_brightness);\n    screensaver_set_timeout(dim_timeout);\n    screensaver_timer=lv_timer_create(screensaver_tick,100,NULL);
+    lv_timer_create(screensaver_tick, 100, NULL);
     theme_animation_timer=lv_timer_create(theme_animation_tick,33,NULL);
     bsp_display_unlock();
     ESP_LOGI(TAG,"RoundGames Phase 3 UI ready");
