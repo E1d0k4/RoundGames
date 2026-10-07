@@ -41,6 +41,7 @@ static lv_obj_t *dim_slider = NULL;
 static lv_obj_t *dim_value_label = NULL;
 static lv_obj_t *screen_saver = NULL;
 static lv_timer_t *screensaver_timer = NULL;
+static lv_obj_t *screensaver_effects[8] = {0};
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 static esp_codec_dev_handle_t speaker_codec = NULL;
@@ -479,8 +480,28 @@ static void build_clock_page(void)
 static void build_theme_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Theme","Darstellung"));
-    lv_obj_t *dark=lv_button_create(s); lv_obj_set_size(dark,170,70); style_option_button(dark,theme==0); lv_obj_align(dark,LV_ALIGN_TOP_MID,-95,198); lv_obj_t *dt=lv_label_create(dark); lv_label_set_text(dt,"Dark"); lv_obj_center(dt); lv_obj_add_event_cb(dark,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
-    lv_obj_t *light=lv_button_create(s); lv_obj_set_size(light,170,70); style_option_button(light,theme==1); lv_obj_align(light,LV_ALIGN_TOP_MID,95,198); lv_obj_t *lt=lv_label_create(light); lv_label_set_text(lt,"Light"); lv_obj_center(lt); lv_obj_add_event_cb(light,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
+
+    const char *names[] = { tr("Dark","Dunkel"), tr("Light","Hell"), "Aurora", "Pulse" };
+
+    for (int i = 0; i < 4; i++) {
+        lv_obj_t *b = lv_button_create(s);
+        lv_obj_set_size(b,170,70);
+        lv_obj_align(b,LV_ALIGN_TOP_MID,(i % 2) ? 95 : -95,170 + (i / 2) * 88);
+        style_option_button(b,theme==i);
+        lv_obj_t *l=lv_label_create(b);
+        lv_label_set_text(l,names[i]);
+        lv_obj_set_style_text_font(l,&lv_font_montserrat_20,0);
+        lv_obj_center(l);
+        lv_obj_add_event_cb(b,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)i);
+    }
+
+    lv_obj_t *hint=lv_label_create(s);
+    lv_label_set_text(hint,tr("Screensaver effects: Aurora / Pulse","Bildschirmschoner: Aurora / Pulse"));
+    lv_obj_set_style_text_font(hint,&lv_font_montserrat_14,0);
+    lv_obj_set_style_text_align(hint,LV_TEXT_ALIGN_CENTER,0);
+    lv_obj_set_width(hint,400);
+    lv_obj_align(hint,LV_ALIGN_TOP_MID,0,350);
+
     add_back_button(s,false);
 }
 
@@ -499,19 +520,43 @@ static void screensaver_tick(lv_timer_t *timer)
     if (!screensaver_enabled) return;
 
     if (screensaver_active) {
-        lv_obj_t *clock = screen_saver ? lv_obj_get_child(screen_saver, 0) : NULL;
+        lv_obj_t *clock = screen_saver ? lv_obj_get_child(screen_saver, 8) : NULL;
         if (clock) {
             time_t now; time(&now);
             struct tm tm_now; localtime_r(&now, &tm_now);
             char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
             lv_label_set_text(clock, buf);
         }
+
+        if (theme == 2) {
+            static int phase = 0;
+            phase = (phase + 2) % 360;
+            for (int i = 0; i < 4; i++) {
+                if (!screensaver_effects[i]) continue;
+                int x = 35 + (int)(sin((phase + i * 90) * 0.0174533) * 105.0);
+                int y = 45 + (int)(cos((phase + i * 70) * 0.0174533) * 90.0);
+                lv_obj_set_pos(screensaver_effects[i], x, y);
+            }
+        } else if (theme == 3) {
+            static int pulse = 0;
+            pulse = (pulse + 8) % 360;
+            for (int i = 0; i < 4; i++) {
+                if (!screensaver_effects[i]) continue;
+                int size = 42 + (int)((sin((pulse + i * 90) * 0.0174533) + 1.0) * 10.0);
+                lv_obj_set_size(screensaver_effects[i], size, size);
+                lv_obj_set_style_opa(screensaver_effects[i],
+                                     (lv_opa_t)(55 + (int)((sin((pulse + i * 90) * 0.0174533) + 1.0) * 30.0)), 0);
+            }
+        }
         return;
     }
 
     inactivity_seconds++;
     if (inactivity_seconds < dim_timeout) return;
-    screensaver_active = true; bsp_display_brightness_set(dim_brightness);
+
+    screensaver_active = true;
+    bsp_display_brightness_set(dim_brightness);
+
     lv_obj_t *screen = lv_scr_act();
     screen_saver = lv_obj_create(screen);
     lv_obj_set_size(screen_saver, LV_PCT(100), LV_PCT(100));
@@ -519,13 +564,49 @@ static void screensaver_tick(lv_timer_t *timer)
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
+
+    for (int i = 0; i < 8; i++) screensaver_effects[i] = NULL;
+
+    if (theme == 2) {
+        const uint32_t colors[] = {0x184D47, 0x1B4965, 0x3A506B, 0x235789};
+        for (int i = 0; i < 4; i++) {
+            screensaver_effects[i] = lv_obj_create(screen_saver);
+            lv_obj_set_size(screensaver_effects[i], 150, 150);
+            lv_obj_set_pos(screensaver_effects[i], 35 + i * 65, 45 + (i % 2) * 110);
+            lv_obj_set_style_radius(screensaver_effects[i], LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_color(screensaver_effects[i], lv_color_hex(colors[i]), 0);
+            lv_obj_set_style_opa(screensaver_effects[i], 45, 0);
+            lv_obj_set_style_border_width(screensaver_effects[i], 0, 0);
+        }
+    } else if (theme == 3) {
+        const uint32_t colors[] = {0x4C1D95, 0x9D174D, 0x1D4ED8, 0x047857};
+        for (int i = 0; i < 4; i++) {
+            screensaver_effects[i] = lv_obj_create(screen_saver);
+            lv_obj_set_size(screensaver_effects[i], 52, 52);
+            lv_obj_set_pos(screensaver_effects[i], 45 + i * 105, 70 + (i % 2) * 270);
+            lv_obj_set_style_radius(screensaver_effects[i], LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_color(screensaver_effects[i], lv_color_hex(colors[i]), 0);
+            lv_obj_set_style_opa(screensaver_effects[i], 70, 0);
+            lv_obj_set_style_border_width(screensaver_effects[i], 0, 0);
+        }
+    }
+
     lv_obj_t *clock = lv_label_create(screen_saver);
     time_t now; time(&now); struct tm tm_now; localtime_r(&now, &tm_now);
     char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
-    lv_label_set_text(clock, buf); lv_obj_set_style_text_color(clock, lv_color_hex(0xFFFFFF), 0); lv_obj_set_style_text_font(clock, &lv_font_montserrat_24, 0); lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, 0); lv_obj_center(clock);
+    lv_label_set_text(clock, buf);
+    lv_obj_set_style_text_color(clock, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(clock, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(clock);
 }
 
-static void screensaver_wake_cb(lv_event_t *e) { LV_UNUSED(e); activity_reset(); }
+static void screensaver_wake_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    for (int i = 0; i < 8; i++) screensaver_effects[i] = NULL;
+    activity_reset();
+}
 
 typedef struct {
     const char *id;
