@@ -42,6 +42,7 @@ static lv_obj_t *dim_value_label = NULL;
 static lv_obj_t *screen_saver = NULL;
 static lv_timer_t *screensaver_timer = NULL;
 static lv_obj_t *screensaver_effects[8] = {0};
+static lv_obj_t *screensaver_clock = NULL;
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 static esp_codec_dev_handle_t speaker_codec = NULL;
@@ -520,7 +521,7 @@ static void screensaver_tick(lv_timer_t *timer)
     if (!screensaver_enabled) return;
 
     if (screensaver_active) {
-        lv_obj_t *clock = screen_saver ? lv_obj_get_child(screen_saver, 8) : NULL;
+        lv_obj_t *clock = screensaver_clock;
         if (clock) {
             time_t now; time(&now);
             struct tm tm_now; localtime_r(&now, &tm_now);
@@ -591,7 +592,8 @@ static void screensaver_tick(lv_timer_t *timer)
         }
     }
 
-    lv_obj_t *clock = lv_label_create(screen_saver);
+    screensaver_clock = lv_label_create(screen_saver);
+    lv_obj_t *clock = screensaver_clock;
     time_t now; time(&now); struct tm tm_now; localtime_r(&now, &tm_now);
     char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
     lv_label_set_text(clock, buf);
@@ -605,6 +607,7 @@ static void screensaver_wake_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
     for (int i = 0; i < 8; i++) screensaver_effects[i] = NULL;
+    screensaver_clock = NULL;
     activity_reset();
 }
 
