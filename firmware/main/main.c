@@ -536,11 +536,6 @@ static void build_games_menu(void)
         lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205, 75 + row * 82);
         style_option_button(button, (favorite_games & (1u << i)) != 0);
 
-        lv_obj_t *star = lv_label_create(button);
-        lv_label_set_text(star, (favorite_games & (1u << i)) ? LV_SYMBOL_CHECK : LV_SYMBOL_CLOSE);
-        lv_obj_set_style_text_font(star, &lv_font_montserrat_20, 0);
-        lv_obj_align(star, LV_ALIGN_LEFT_MID, 12, 0);
-
         lv_obj_t *label = lv_label_create(button);
         lv_label_set_text(label, games[i].name);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_18, 0);
@@ -601,15 +596,19 @@ static void build_launcher(void)
 
     if (page_count > 1) {
         for (int i = 0; i < page_count; i++) {
-            lv_obj_t *dot = lv_label_create(screen);
-            lv_label_set_text(dot, i == launcher_page ? LV_SYMBOL_CHECK : LV_SYMBOL_BULLET);
-            lv_obj_set_style_text_font(dot, &lv_font_montserrat_14, 0);
+            lv_obj_t *dot = lv_obj_create(screen);
+            lv_obj_set_size(dot, i == launcher_page ? 10 : 7, i == launcher_page ? 10 : 7);
+            lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_color(dot, i == launcher_page ? lv_color_hex(0x20A050) : lv_color_hex(0x60656D), 0);
+            lv_obj_set_style_border_width(dot, 0, 0);
             lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, (i - (page_count - 1) / 2) * 18, -18);
         }
     } else {
-        lv_obj_t *dot = lv_label_create(screen);
-        lv_label_set_text(dot, LV_SYMBOL_CIRCLE);
-        lv_obj_set_style_text_font(dot, &lv_font_montserrat_14, 0);
+        lv_obj_t *dot = lv_obj_create(screen);
+        lv_obj_set_size(dot, 10, 10);
+        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(dot, lv_color_hex(0x20A050), 0);
+        lv_obj_set_style_border_width(dot, 0, 0);
         lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, 0, -18);
     }
 }
