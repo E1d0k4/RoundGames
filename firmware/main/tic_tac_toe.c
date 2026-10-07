@@ -56,6 +56,19 @@ static bool board_full(void)
     return true;
 }
 
+static void add_neon_line(lv_obj_t *screen, const lv_point_precise_t *points, uint32_t count)
+{
+    lv_obj_t *line = lv_line_create(screen);
+    lv_line_set_points(line, points, count);
+    lv_obj_set_style_line_color(line, lv_color_hex(0x39FF66), 0);
+    lv_obj_set_style_line_width(line, 3, 0);
+    lv_obj_set_style_line_rounded(line, true, 0);
+    lv_obj_set_style_line_opa(line, LV_OPA_100, 0);
+    lv_obj_set_style_shadow_color(line, lv_color_hex(0x39FF66), 0);
+    lv_obj_set_style_shadow_opa(line, LV_OPA_80, 0);
+    lv_obj_set_style_shadow_width(line, 12, 0);
+}
+
 static void update_cell(int row, int col)
 {
     char text[2] = { board[row][col], '\0' };
@@ -199,7 +212,7 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
     const int size = 88;
     const int gap = 8;
     const int start_x = -136;
-    const int start_y = 92;
+    const int start_y = 82;
     const int cell = 88;
     const int step = size + gap;
 
@@ -218,7 +231,7 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
 
             lv_obj_t *label = lv_label_create(button);
             lv_label_set_text(label, "");
-            lv_obj_set_style_text_font(label, &lv_font_montserrat_32, 0);
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
             lv_obj_set_style_text_color(label, lv_color_white(), 0);
             lv_obj_center(label);
 
