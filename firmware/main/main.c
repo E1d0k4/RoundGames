@@ -134,7 +134,7 @@ static void clear_screen(void)
 }
 
 static void back_button_cb(lv_event_t *e) { LV_UNUSED(e); activity_reset(); build_settings_menu(); }
-static void generic_back_launcher_cb(lv_event_t *e) { LV_UNUSED(e); activity_reset(); build_launcher(); }
+static void generic_back_launcher_cb(lv_event_t *e) { LV_UNUSED(e); input_set_game_state(false, NULL); activity_reset(); build_launcher(); }
 
 static void set_brightness(int value)
 {
@@ -233,6 +233,11 @@ static void gesture_left_cb(void)
 }
 
 static void gesture_right_cb(void)
+{
+    lv_async_call(launcher_async_cb, NULL);
+}
+
+static void gesture_game_back_cb(void)
 {
     lv_async_call(launcher_async_cb, NULL);
 }
@@ -432,6 +437,7 @@ static void build_info_page(void)
 
 static void tic_tac_toe_back(void)
 {
+    input_set_game_state(false, NULL);
     activity_reset();
     build_launcher();
 }
@@ -440,6 +446,7 @@ static void launcher_game_action(int game_index, const char *name)
 {
     LV_UNUSED(name);
     activity_reset();
+    input_set_game_state(true, gesture_game_back_cb);
 
     if (game_index == 0) {
         clear_screen();
