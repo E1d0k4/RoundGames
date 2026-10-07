@@ -8,13 +8,13 @@
 
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "nvs.h"
 #include "lvgl.h"
 
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
 #include "audio.h"
 #include "language.h"
+#include "settings.h"
 
 static const char *TAG = "roundgames";
 
@@ -61,44 +61,46 @@ static const char *tr(const char *en, const char *de) { return language_tr(en, d
 
 static void save_settings(void)
 {
-    nvs_handle_t nvs;
-    if (nvs_open("settings", NVS_READWRITE, &nvs) != ESP_OK) return;
-    nvs_set_i32(nvs, "brightness", current_brightness);
-    nvs_set_i32(nvs, "volume", current_volume);
-    nvs_set_i32(nvs, "dim_bright", dim_brightness);
-    nvs_set_i32(nvs, "dim_time", dim_timeout);
-    nvs_set_i32(nvs, "language", language_get());
-    nvs_set_i32(nvs, "theme", theme);
-    nvs_set_i32(nvs, "muted", sound_muted);
-    nvs_set_i32(nvs, "screensaver", screensaver_enabled);
-    nvs_set_u32(nvs, "favorites", favorite_games);
-    time_t now; time(&now);
-    nvs_set_i64(nvs, "epoch", (int64_t)now);
-    nvs_commit(nvs);
-    nvs_close(nvs);
+    settings_data_t data = {
+        .brightness = current_brightness,
+        .volume = current_volume,
+        .dim_brightness = dim_brightness,
+        .dim_timeout = dim_timeout,
+        .language = language_get(),
+        .theme = theme,
+        .muted = sound_muted,
+        .screensaver_enabled = screensaver_enabled,
+        .favorite_games = favorite_games
+    };
+    time(&data.epoch);
+    settings_save(&data);
 }
 
 static void load_settings(void)
 {
-    nvs_handle_t nvs;
-    if (nvs_open("settings", NVS_READONLY, &nvs) != ESP_OK) return;
-    int32_t value;
-    if (nvs_get_i32(nvs, "brightness", &value) == ESP_OK) current_brightness = value;
-    if (nvs_get_i32(nvs, "volume", &value) == ESP_OK) current_volume = value;
-    if (nvs_get_i32(nvs, "dim_bright", &value) == ESP_OK) dim_brightness = value;
-    if (nvs_get_i32(nvs, "dim_time", &value) == ESP_OK) dim_timeout = value;
-    if (nvs_get_i32(nvs, "language", &value) == ESP_OK) language_set(value);
-    if (nvs_get_i32(nvs, "theme", &value) == ESP_OK) theme = value;
-    if (nvs_get_i32(nvs, "muted", &value) == ESP_OK) sound_muted = value;
-    if (nvs_get_i32(nvs, "screensaver", &value) == ESP_OK) screensaver_enabled = value;
-    uint32_t favorites;
-    if (nvs_get_u32(nvs, "favorites", &favorites) == ESP_OK) favorite_games = favorites;
-    int64_t epoch;
-    if (nvs_get_i64(nvs, "epoch", &epoch) == ESP_OK && epoch > 1700000000) {
-        struct timeval tv = { .tv_sec = (time_t)epoch, .tv_usec = 0 };
-        settimeofday(&tv, NULL);
-    }
-    nvs_close(nvs);
+    settings_data_t data = {
+        .brightness = current_brightness,
+        .volume = current_volume,
+        .dim_brightness = dim_brightness,
+        .dim_timeout = dim_timeout,
+        .language = language_get(),
+        .theme = theme,
+        .muted = sound_muted,
+        .screensaver_enabled = screensaver_enabled,
+        .favorite_games = favorite_games
+    };
+    settings_load(&data);
+
+    current_brightness = data.brightness;
+    current_volume = data.volume;
+    dim_brightness = data.dim_brightness;
+    dim_timeout = data.dim_timeout;
+    language_set(data.language);
+    theme = data.theme;
+    sound_muted = data.muted;
+    screensaver_enabled = data.screensaver_enabled;
+    favorite_games = data.favorite_games;
+
     if (theme < 0 || theme > 3) theme = 0;
     if (current_brightness < 10) current_brightness = 10;
     if (current_brightness > 100) current_brightness = 100;
