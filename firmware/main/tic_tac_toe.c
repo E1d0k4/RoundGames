@@ -486,7 +486,7 @@ lv_label_set_recolor(title, true);
 
 lv_label_set_text(title, "#35E0FF TIC#  #E8ECF8 TAC#  #FF5C8A TOE#");
 
-lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+lv_obj_set_style_text_font(title, &lv_font_montserrat_22, 0);
 
 lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 52);
 
@@ -712,8 +712,6 @@ do_move(idx);
 
 }
 
-static void menu_btn_cb(lv_event_t *e) { (void)e; menu_create(); }
-
 static void back_btn_cb(lv_event_t *e)
 {
     (void)e;
@@ -751,7 +749,7 @@ lv_obj_t *scr = lv_scr_act();
 
 s_status = lv_label_create(scr);
 
-lv_obj_set_style_text_font(s_status, &lv_font_montserrat_28, 0);
+lv_obj_set_style_text_font(s_status, &lv_font_montserrat_22, 0);
 
 lv_obj_align(s_status, LV_ALIGN_TOP_MID, 0, 52);
 
@@ -795,7 +793,7 @@ lv_obj_add_event_cb(b, cell_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
 
 lv_obj_t *l = lv_label_create(b);
 
-lv_obj_set_style_text_font(l, &lv_font_montserrat_32, 0);
+lv_obj_set_style_text_font(l, &lv_font_montserrat_48, 0);
 
 lv_label_set_text(l, "");
 
