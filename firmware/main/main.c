@@ -327,21 +327,21 @@ static void build_brightness_page(void)
 
     lv_obj_t *n=lv_label_create(s); lv_label_set_text(n,"Normal"); lv_obj_align(n,LV_ALIGN_TOP_LEFT,42,70);
     brightness_value_label=lv_label_create(s); lv_label_set_text_fmt(brightness_value_label,"%d%%",current_brightness); lv_obj_align(brightness_value_label,LV_ALIGN_TOP_RIGHT,-42,70);
-    brightness_slider=lv_slider_create(s); lv_obj_set_width(brightness_slider,300); lv_slider_set_range(brightness_slider,10,100); lv_slider_set_value(brightness_slider,current_brightness,LV_ANIM_OFF); lv_obj_align(brightness_slider,LV_ALIGN_TOP_MID,0,100); lv_obj_add_event_cb(brightness_slider,brightness_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    brightness_slider=lv_slider_create(s); lv_obj_set_width(brightness_slider,300); lv_slider_set_range(brightness_slider,10,100); lv_slider_set_value(brightness_slider,current_brightness,LV_ANIM_OFF); lv_obj_align(brightness_slider,LV_ALIGN_TOP_MID,0,112); lv_obj_add_event_cb(brightness_slider,brightness_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
 
-    lv_obj_t *bm=lv_button_create(s); lv_obj_set_size(bm,55,42); lv_obj_align(bm,LV_ALIGN_TOP_LEFT,28,90); style_option_button(bm,false); lv_obj_t *bml=lv_label_create(bm); lv_label_set_text(bml,"-"); lv_obj_center(bml); lv_obj_add_event_cb(bm,brightness_minus_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *bp=lv_button_create(s); lv_obj_set_size(bp,55,42); lv_obj_align(bp,LV_ALIGN_TOP_RIGHT,-28,90); style_option_button(bp,false); lv_obj_t *bpl=lv_label_create(bp); lv_label_set_text(bpl,"+"); lv_obj_center(bpl); lv_obj_add_event_cb(bp,brightness_plus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *bm=lv_button_create(s); lv_obj_set_size(bm,55,42); lv_obj_align(bm,LV_ALIGN_TOP_LEFT,28,102); style_option_button(bm,false); lv_obj_t *bml=lv_label_create(bm); lv_label_set_text(bml,"-"); lv_obj_center(bml); lv_obj_add_event_cb(bm,brightness_minus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *bp=lv_button_create(s); lv_obj_set_size(bp,55,42); lv_obj_align(bp,LV_ALIGN_TOP_RIGHT,-28,102); style_option_button(bp,false); lv_obj_t *bpl=lv_label_create(bp); lv_label_set_text(bpl,"+"); lv_obj_center(bpl); lv_obj_add_event_cb(bp,brightness_plus_cb,LV_EVENT_CLICKED,NULL);
 
-    lv_obj_t *d=lv_label_create(s); lv_label_set_text(d,tr("Dim","Dimmen")); lv_obj_align(d,LV_ALIGN_TOP_LEFT,42,145);
-    dim_value_label=lv_label_create(s); lv_label_set_text_fmt(dim_value_label,"%d%%",dim_brightness); lv_obj_align(dim_value_label,LV_ALIGN_TOP_RIGHT,-42,145);
-    dim_slider=lv_slider_create(s); lv_obj_set_width(dim_slider,300); lv_slider_set_range(dim_slider,5,50); lv_slider_set_value(dim_slider,dim_brightness,LV_ANIM_OFF); lv_obj_align(dim_slider,LV_ALIGN_TOP_MID,0,175); lv_obj_add_event_cb(dim_slider,dim_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
-    lv_obj_t *dm=lv_button_create(s); lv_obj_set_size(dm,55,42); lv_obj_align(dm,LV_ALIGN_TOP_LEFT,28,165); style_option_button(dm,false); lv_obj_t *dml=lv_label_create(dm); lv_label_set_text(dml,"-"); lv_obj_center(dml); lv_obj_add_event_cb(dm,dim_minus_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,55,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-28,165); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *d=lv_label_create(s); lv_label_set_text(d,tr("Dim","Dimmen")); lv_obj_align(d,LV_ALIGN_TOP_LEFT,42,172);
+    dim_value_label=lv_label_create(s); lv_label_set_text_fmt(dim_value_label,"%d%%",dim_brightness); lv_obj_align(dim_value_label,LV_ALIGN_TOP_RIGHT,-42,172);
+    dim_slider=lv_slider_create(s); lv_obj_set_width(dim_slider,300); lv_slider_set_range(dim_slider,5,50); lv_slider_set_value(dim_slider,dim_brightness,LV_ANIM_OFF); lv_obj_align(dim_slider,LV_ALIGN_TOP_MID,0,194); lv_obj_add_event_cb(dim_slider,dim_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    lv_obj_t *dm=lv_button_create(s); lv_obj_set_size(dm,55,42); lv_obj_align(dm,LV_ALIGN_TOP_LEFT,28,184); style_option_button(dm,false); lv_obj_t *dml=lv_label_create(dm); lv_label_set_text(dml,"-"); lv_obj_center(dml); lv_obj_add_event_cb(dm,dim_minus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,55,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-28,184); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
 
-    lv_obj_t *ss=lv_button_create(s); lv_obj_set_size(ss,175,52); lv_obj_align(ss,LV_ALIGN_TOP_LEFT,48,225); style_option_button(ss,screensaver_enabled);
+    lv_obj_t *ss=lv_button_create(s); lv_obj_set_size(ss,175,52); lv_obj_align(ss,LV_ALIGN_TOP_LEFT,48,260); style_option_button(ss,screensaver_enabled);
     lv_obj_t *ssl=lv_label_create(ss); lv_label_set_text_fmt(ssl,"%s: %s",tr("Screen","Bildschirm"),screensaver_enabled ? "ON":"OFF"); lv_obj_center(ssl); lv_obj_add_event_cb(ss,screensaver_toggle_cb,LV_EVENT_CLICKED,NULL);
 
-    lv_obj_t *to=lv_button_create(s); lv_obj_set_size(to,175,52); lv_obj_align(to,LV_ALIGN_TOP_RIGHT,-48,225); style_option_button(to,false);
+    lv_obj_t *to=lv_button_create(s); lv_obj_set_size(to,175,52); lv_obj_align(to,LV_ALIGN_TOP_RIGHT,-48,260); style_option_button(to,false);
     lv_obj_t *tol=lv_label_create(to); lv_label_set_text_fmt(tol,"%s: %ds",tr("After","Nach"),dim_timeout); lv_obj_center(tol); lv_obj_add_event_cb(to,dim_time_cb,LV_EVENT_CLICKED,NULL);
     add_back_button(s,false);
 }
@@ -360,20 +360,19 @@ static void play_test_tone(void)
 
     esp_codec_dev_set_out_vol(speaker_codec, current_volume);
 
-    static int16_t tone[3308 * 2];
+    static int16_t tone[22050];
     static bool ready = false;
     if (!ready) {
-        for (int i = 0; i < 3308; i++) {
-            int16_t sample = ((i % 25) < 12) ? 7000 : -7000;
-            tone[i * 2] = sample;
-            tone[i * 2 + 1] = sample;
+        for (int i = 0; i < 22050; i++) {
+            int16_t sample = ((i % 25) < 12) ? 9000 : -9000;
+            tone[i] = sample;
         }
         ready = true;
     }
 
     esp_codec_dev_sample_info_t fs = {
         .sample_rate = 22050,
-        .channel = 2,
+        .channel = 1,
         .bits_per_sample = 16
     };
 
@@ -382,7 +381,10 @@ static void play_test_tone(void)
         return;
     }
 
-    esp_codec_dev_write(speaker_codec, tone, sizeof(tone));
+    esp_err_t write_ret = esp_codec_dev_write(speaker_codec, tone, sizeof(tone));
+    if (write_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Speaker write failed: %s", esp_err_to_name(write_ret));
+    }
     esp_codec_dev_close(speaker_codec);
 }
 
@@ -442,7 +444,19 @@ static void build_info_page(void)
 static void screensaver_tick(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
-    if (!screensaver_enabled || screensaver_active) return;
+    if (!screensaver_enabled) return;
+
+    if (screensaver_active) {
+        lv_obj_t *clock = screen_saver ? lv_obj_get_child(screen_saver, 0) : NULL;
+        if (clock) {
+            time_t now; time(&now);
+            struct tm tm_now; localtime_r(&now, &tm_now);
+            char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
+            lv_label_set_text(clock, buf);
+        }
+        return;
+    }
+
     inactivity_seconds++;
     if (inactivity_seconds < dim_timeout) return;
     screensaver_active = true; bsp_display_brightness_set(dim_brightness);
