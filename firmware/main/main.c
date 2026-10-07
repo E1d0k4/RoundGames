@@ -560,21 +560,21 @@ static void screensaver_tick(lv_timer_t *timer)
         if (screensaver_style == 1) {
             static int phase = 0;
             phase = (phase + 2) % 360;
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 6; i++) {
                 if (!screensaver_effects[i]) continue;
-                int x = 35 + (int)(sin((phase + i * 90) * 0.0174533) * 105.0);
-                int y = 45 + (int)(cos((phase + i * 70) * 0.0174533) * 90.0);
+                int x = -10 + i * 70 + (int)(sin((phase + i * 60) * 0.0174533) * 55.0);
+                int y = 20 + (i % 3) * 105 + (int)(cos((phase + i * 75) * 0.0174533) * 45.0);
                 lv_obj_set_pos(screensaver_effects[i], x, y);
             }
         } else if (screensaver_style == 2) {
             static int pulse = 0;
             pulse = (pulse + 8) % 360;
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 6; i++) {
                 if (!screensaver_effects[i]) continue;
-                int size = 42 + (int)((sin((pulse + i * 90) * 0.0174533) + 1.0) * 10.0);
+                int size = 60 + (int)((sin((pulse + i * 60) * 0.0174533) + 1.0) * 25.0);
                 lv_obj_set_size(screensaver_effects[i], size, size);
                 lv_obj_set_style_opa(screensaver_effects[i],
-                                     (lv_opa_t)(55 + (int)((sin((pulse + i * 90) * 0.0174533) + 1.0) * 30.0)), 0);
+                                     (lv_opa_t)(55 + (int)((sin((pulse + i * 60) * 0.0174533) + 1.0) * 45.0)), 0);
             }
         }
         return;
@@ -597,25 +597,27 @@ static void screensaver_tick(lv_timer_t *timer)
     for (int i = 0; i < 8; i++) screensaver_effects[i] = NULL;
 
     if (screensaver_style == 1) {
-        const uint32_t colors[] = {0x184D47, 0x1B4965, 0x3A506B, 0x235789};
-        for (int i = 0; i < 4; i++) {
+        const uint32_t colors[] = {0x00BFA5, 0x1976D2, 0x7E57C2, 0x26A69A, 0x1565C0, 0xAB47BC};
+        for (int i = 0; i < 6; i++) {
             screensaver_effects[i] = lv_obj_create(screen_saver);
-            lv_obj_set_size(screensaver_effects[i], 150, 150);
-            lv_obj_set_pos(screensaver_effects[i], 35 + i * 65, 45 + (i % 2) * 110);
+            lv_obj_set_size(screensaver_effects[i], 180, 180);
+            lv_obj_set_pos(screensaver_effects[i], 10 + i * 70, 30 + (i % 3) * 105);
             lv_obj_set_style_radius(screensaver_effects[i], LV_RADIUS_CIRCLE, 0);
             lv_obj_set_style_bg_color(screensaver_effects[i], lv_color_hex(colors[i]), 0);
-            lv_obj_set_style_opa(screensaver_effects[i], 45, 0);
+            lv_obj_set_style_opa(screensaver_effects[i], 110, 0);
+            lv_obj_set_style_bg_opa(screensaver_effects[i], LV_OPA_COVER, 0);
             lv_obj_set_style_border_width(screensaver_effects[i], 0, 0);
         }
     } else if (screensaver_style == 2) {
-        const uint32_t colors[] = {0x4C1D95, 0x9D174D, 0x1D4ED8, 0x047857};
-        for (int i = 0; i < 4; i++) {
+        const uint32_t colors[] = {0x7C3AED, 0xDB2777, 0x2563EB, 0x059669, 0xF59E0B, 0x06B6D4};
+        for (int i = 0; i < 6; i++) {
             screensaver_effects[i] = lv_obj_create(screen_saver);
-            lv_obj_set_size(screensaver_effects[i], 52, 52);
-            lv_obj_set_pos(screensaver_effects[i], 45 + i * 105, 70 + (i % 2) * 270);
+            lv_obj_set_size(screensaver_effects[i], 80, 80);
+            lv_obj_set_pos(screensaver_effects[i], 20 + i * 80, 65 + (i % 3) * 150);
             lv_obj_set_style_radius(screensaver_effects[i], LV_RADIUS_CIRCLE, 0);
             lv_obj_set_style_bg_color(screensaver_effects[i], lv_color_hex(colors[i]), 0);
-            lv_obj_set_style_opa(screensaver_effects[i], 70, 0);
+            lv_obj_set_style_opa(screensaver_effects[i], 150, 0);
+            lv_obj_set_style_bg_opa(screensaver_effects[i], LV_OPA_COVER, 0);
             lv_obj_set_style_border_width(screensaver_effects[i], 0, 0);
         }
     }
@@ -626,7 +628,7 @@ static void screensaver_tick(lv_timer_t *timer)
     char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
     lv_label_set_text(clock, buf);
     lv_obj_set_style_text_color(clock, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(clock, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_font(clock, &lv_font_montserrat_96, 0);
     lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(clock);
 }
