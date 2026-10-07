@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "lvgl.h"
 
 typedef void (*launcher_game_cb_t)(int game_index, const char *name);
