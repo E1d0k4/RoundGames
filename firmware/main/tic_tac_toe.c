@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "esp_system.h"
+#include "esp_random.h"
 
 #define BOARD_SIZE 3
 
@@ -87,14 +87,6 @@ static bool board_full(void)
     return true;
 }
 
-static int empty_count(void)
-{
-    int count = 0;
-    for (int r = 0; r < BOARD_SIZE; r++)
-        for (int c = 0; c < BOARD_SIZE; c++)
-            if (board[r][c] == 0) count++;
-    return count;
-}
 
 static int minimax(char turn, int depth)
 {
@@ -299,7 +291,7 @@ static void menu_button_cb(lv_event_t *e)
     if (menu_panel) lv_obj_clear_flag(menu_panel, LV_OBJ_FLAG_HIDDEN);
 }
 
-static void back_cb(lv_event_t *e)
+static void back_button_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
     close_menu();
@@ -371,7 +363,7 @@ static void build_menu(lv_obj_t *parent)
     lv_obj_set_size(menu_panel, 300, 340);
     lv_obj_center(menu_panel);
     lv_obj_set_style_bg_color(menu_panel, lv_color_hex(0x071018), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(menu_panel, LV_OPA_98, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(menu_panel, LV_OPA_100, LV_PART_MAIN);
     lv_obj_set_style_border_color(menu_panel, lv_color_hex(0x39FF66), LV_PART_MAIN);
     lv_obj_set_style_border_width(menu_panel, 2, LV_PART_MAIN);
     lv_obj_set_style_radius(menu_panel, 18, LV_PART_MAIN);
@@ -432,7 +424,7 @@ void tic_tac_toe_open(lv_obj_t *target_screen, tic_tac_toe_back_cb_t back_cb)
 
     lv_obj_t *back = make_action_button(screen, LV_SYMBOL_LEFT, 40, 40);
     lv_obj_align(back, LV_ALIGN_TOP_LEFT, 8, 10);
-    lv_obj_add_event_cb(back, back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *menu = make_action_button(screen, LV_SYMBOL_LIST, 40, 40);
     lv_obj_align(menu, LV_ALIGN_TOP_RIGHT, -8, 10);
