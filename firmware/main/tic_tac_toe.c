@@ -109,12 +109,12 @@ static void update_cell(int row, int col)
         lv_label_set_text(label, text);
         if (board[row][col] == 'X') {
             lv_obj_set_style_text_color(label, lv_color_hex(0x20A8FF), 0);
-            lv_obj_set_style_text_shadow_color(label, lv_color_hex(0x20A8FF), 0);
-            lv_obj_set_style_text_shadow_opa(label, LV_OPA_90, 0);
-            lv_obj_set_style_text_shadow_width(label, 18, 0);
+            lv_obj_set_style_shadow_color(label, lv_color_hex(0x20A8FF), 0);
+            lv_obj_set_style_shadow_opa(label, LV_OPA_90, 0);
+            lv_obj_set_style_shadow_width(label, 18, 0);
         } else if (board[row][col] == 'O') {
             lv_obj_set_style_text_color(label, lv_color_hex(0xFF3030), 0);
-            lv_obj_set_style_text_shadow_color(label, lv_color_hex(0xFF3030), 0);
+            lv_obj_set_style_shadow_color(label, lv_color_hex(0xFF3030), 0);
             lv_obj_set_style_text_shadow_opa(label, LV_OPA_90, 0);
             lv_obj_set_style_text_shadow_width(label, 18, 0);
         } else {
