@@ -1,529 +1,837 @@
-#include "tic_tac_toe.h"
+/*
 
-#include "audio.h"
-#include "language.h"
+ * Tic Tac Toe fuer Waveshare ESP32-S3-Touch-AMOLED-1.75 (466x466, rund)
+
+ * ---------------------------------------------------------------------
+
+ * - Modi:      Klassik (3 gewinnt, Unentschieden moeglich)
+
+ *              Unendlich (max. 3 Zeichen pro Spieler, das aelteste verschwindet)
+
+ * - Spieler:   1 Spieler (gegen KI, Leicht / Schwer) oder 2 Spieler
+
+ * - Toolkit:   LVGL 8.3 / 8.4 (ESP-IDF, z.B. ueber esp_lvgl_port)
+
+ *
+
+ * Benoetigte sdkconfig-Optionen:
+
+ *   CONFIG_LV_FONT_MONTSERRAT_20=y
+
+ *   CONFIG_LV_FONT_MONTSERRAT_28=y
+
+ *   CONFIG_LV_FONT_MONTSERRAT_40=y
+
+ *
+
+ * Einbindung: Display + Touch + LVGL wie im Waveshare-Beispiel initialisieren,
+
+ * dann (mit LVGL-Lock) ttt_start() aufrufen.
+
+ */
+
+#include <stdlib.h>
+
+#include <stdint.h>
 
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
+
+#include "tic_tac_toe.h"
+#include "language.h"
+#include "lvgl.h"
+
 #include "esp_random.h"
 
-#define BOARD_SIZE 3
+/* ------------------------------------------------------------------ */
 
-typedef enum {
-    TTT_MODE_CLASSIC = 0,
-    TTT_MODE_ENDLESS,
-    TTT_MODE_TWO_PLAYER,
-    TTT_MODE_TWO_PLAYER_ENDLESS
-} ttt_mode_t;
+/*  Farben & Layout                                                    */
 
-static lv_obj_t *screen;
-static lv_obj_t *board_buttons[BOARD_SIZE][BOARD_SIZE];
-static lv_obj_t *status_label;
-static lv_obj_t *score_label;
-static lv_obj_t *mode_label;
-static lv_obj_t *menu_panel;
-static lv_obj_t *board_frame;
-static lv_timer_t *neon_timer;
-static uint32_t neon_phase;
+/* ------------------------------------------------------------------ */
 
-static tic_tac_toe_back_cb_t back_callback;
-static char board[BOARD_SIZE][BOARD_SIZE];
-static bool game_over;
-static char current_player;
-static ttt_mode_t mode = TTT_MODE_CLASSIC;
-static int player_score;
-static int opponent_score;
+#define COL_BG      lv_color_hex(0x0B0F1A)
 
-static const char *tr(const char *en, const char *de)
+#define COL_CELL    lv_color_hex(0x1B2236)
+
+#define COL_CELL_P  lv_color_hex(0x2A3452)
+
+#define COL_X       lv_color_hex(0x35E0FF)
+
+#define COL_O       lv_color_hex(0xFF5C8A)
+
+#define COL_ACCENT  lv_color_hex(0x7C5CFF)
+
+#define COL_WIN     lv_color_hex(0x2EE59D)
+
+#define COL_TEXT    lv_color_hex(0xE8ECF8)
+
+#define COL_DIM     lv_color_hex(0x7F8AA8)
+
+#define CELL_SIZE   78
+
+#define CELL_GAP    8
+
+#define GRID_LEFT   108
+
+#define GRID_TOP    118
+
+enum { MODE_CLASSIC = 0, MODE_INFINITE = 1 };
+
+enum { LEVEL_EASY = 0, LEVEL_HARD = 1 };
+
+/* ------------------------------------------------------------------ */
+
+/*  Spiellogik                                                         */
+
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+
+int8_t cell[9];      /* 0 leer, 1 = X, 2 = O                       */
+
+int8_t order[3][5];  /* Reihenfolge der Zuege je Spieler (1..2)    */
+
+int8_t count[3];     /* Anzahl gesetzter Zeichen je Spieler        */
+
+int8_t turn;         /* 1 = X, 2 = O                               */
+
+} board_t;
+
+static const int8_t LINES[8][3] = {
+
+    {0,1,2},{3,4,5},{6,7,8},{0,3,6},{1,4,7},{2,5,8},{0,4,8},{2,4,6}
+
+};
+
+/* Auswahl im Menue */
+
+static int s_mode  = MODE_CLASSIC;
+
+static int s_two   = 0;           /* 0 = 1 Spieler, 1 = 2 Spieler */
+
+static int s_level = LEVEL_HARD;
+
+/* Spielzustand */
+
+static board_t s_b;
+
+static bool    s_over;
+
+static int     s_winner;          /* 0 = Unentschieden */
+
+static int     s_line = -1;
+
+static int     s_score[3];
+
+static int     s_rounds;
+
+/* UI-Objekte */
+
+static lv_obj_t   *s_cell[9];
+
+static lv_obj_t   *s_lbl[9];
+
+static lv_obj_t   *s_status, *s_scorelbl, *s_level_row;
+
+static lv_timer_t *s_ai_timer, *s_round_timer;
+static lv_obj_t *s_screen;
+static tic_tac_toe_back_cb_t s_back_callback;
+
+static void menu_create(void);
+
+static void game_create(void);
+
+static int winner_line(const board_t *b, int p)
+
 {
-    return language_tr(en, de);
-}
 
-static const char *mode_name_en(ttt_mode_t value)
-{
-    switch (value) {
-        case TTT_MODE_ENDLESS: return "Endless";
-        case TTT_MODE_TWO_PLAYER: return "2 Players";
-        case TTT_MODE_TWO_PLAYER_ENDLESS: return "2P Endless";
-        default: return "Classic";
-    }
-}
+for (int l = 0; l < 8; l++) {
 
-static const char *mode_name_de(ttt_mode_t value)
-{
-    switch (value) {
-        case TTT_MODE_ENDLESS: return "Unendlich";
-        case TTT_MODE_TWO_PLAYER: return "2 Spieler";
-        case TTT_MODE_TWO_PLAYER_ENDLESS: return "2P Unendlich";
-        default: return "Klassisch";
-    }
-}
+if (b->cell[LINES[l][0]] == p && b->cell[LINES[l][1]] == p &&
 
-static void board_reset(void)
-{
-    for (int row = 0; row < BOARD_SIZE; row++) {
-        for (int col = 0; col < BOARD_SIZE; col++) board[row][col] = 0;
-    }
-    current_player = 'X';
-    game_over = false;
-}
+b->cell[LINES[l][2]] == p) return l;
 
-static bool board_has_winner(char mark)
-{
-    for (int i = 0; i < BOARD_SIZE; i++) {
-        if (board[i][0] == mark && board[i][1] == mark && board[i][2] == mark) return true;
-        if (board[0][i] == mark && board[1][i] == mark && board[2][i] == mark) return true;
-    }
-    return (board[0][0] == mark && board[1][1] == mark && board[2][2] == mark) ||
-           (board[0][2] == mark && board[1][1] == mark && board[2][0] == mark);
-}
-
-static bool board_full(void)
-{
-    for (int row = 0; row < BOARD_SIZE; row++)
-        for (int col = 0; col < BOARD_SIZE; col++)
-            if (board[row][col] == 0) return false;
-    return true;
-}
-
-
-static int minimax(char turn, int depth)
-{
-    if (board_has_winner('O')) return 10 - depth;
-    if (board_has_winner('X')) return depth - 10;
-    if (board_full()) return 0;
-
-    int best = (turn == 'O') ? -100 : 100;
-    for (int r = 0; r < BOARD_SIZE; r++) {
-        for (int c = 0; c < BOARD_SIZE; c++) {
-            if (board[r][c] != 0) continue;
-            board[r][c] = turn;
-            int value = minimax(turn == 'O' ? 'X' : 'O', depth + 1);
-            board[r][c] = 0;
-            if (turn == 'O') {
-                if (value > best) best = value;
-            } else if (value < best) {
-                best = value;
-            }
-        }
-    }
-    return best;
-}
-
-static void ai_move(void)
-{
-    int best_score = -100;
-    int best_moves[9];
-    int best_count = 0;
-
-    for (int r = 0; r < BOARD_SIZE; r++) {
-        for (int c = 0; c < BOARD_SIZE; c++) {
-            if (board[r][c] != 0) continue;
-            board[r][c] = 'O';
-            int value = minimax('X', 0);
-            board[r][c] = 0;
-            if (value > best_score) {
-                best_score = value;
-                best_count = 0;
-                best_moves[best_count++] = r * BOARD_SIZE + c;
-            } else if (value == best_score) {
-                best_moves[best_count++] = r * BOARD_SIZE + c;
-            }
-        }
     }
 
-    if (best_count > 0) {
-        int pick = best_moves[esp_random() % best_count];
-        board[pick / BOARD_SIZE][pick % BOARD_SIZE] = 'O';
-    }
+return -1;
+
 }
 
-static void update_cell(int row, int col)
+static void apply_move(board_t *b, int idx, int mode)
+
 {
-    lv_obj_t *label = lv_obj_get_child(board_buttons[row][col], 0);
-    if (!label) return;
 
-    char text[2] = { board[row][col] ? board[row][col] : ' ', '\0' };
-    lv_label_set_text(label, text);
+int p = b->turn;
 
-    if (board[row][col] == 'X') {
-        lv_obj_set_style_text_color(label, lv_color_hex(0x20A8FF), 0);
-        lv_obj_set_style_shadow_color(label, lv_color_hex(0x20A8FF), 0);
-        lv_obj_set_style_shadow_opa(label, LV_OPA_90, 0);
-        lv_obj_set_style_shadow_width(label, 20, 0);
-    } else if (board[row][col] == 'O') {
-        lv_obj_set_style_text_color(label, lv_color_hex(0xFF3045), 0);
-        lv_obj_set_style_shadow_color(label, lv_color_hex(0xFF3045), 0);
-        lv_obj_set_style_shadow_opa(label, LV_OPA_90, 0);
-        lv_obj_set_style_shadow_width(label, 20, 0);
+if (mode == MODE_INFINITE && b->count[p] == 3) {
+
+int old = b->order[p][0];
+
+b->cell[old] = 0;
+
+b->order[p][0] = b->order[p][1];
+
+b->order[p][1] = b->order[p][2];
+
+b->count[p] = 2;
+
+    }
+
+b->cell[idx] = p;
+
+b->order[p][b->count[p]++] = idx;
+
+b->turn = 3 - p;
+
+}
+
+static bool board_full(const board_t *b)
+
+{
+
+for (int i = 0; i < 9; i++) if (!b->cell[i]) return false;
+
+return true;
+
+}
+
+/* Negamax mit Alpha-Beta. Wert aus Sicht des Spielers, der am Zug ist. */
+
+static int negamax(const board_t *b, int depth, int alpha, int beta, int mode)
+
+{
+
+int best = -100;
+
+bool any = false;
+
+for (int i = 0; i < 9; i++) {
+
+if (b->cell[i]) continue;
+
+any = true;
+
+board_t n = *b;
+
+int p = n.turn;
+
+apply_move(&n, i, mode);
+
+int s;
+
+if (winner_line(&n, p) >= 0) s = 10 + depth;
+
+else if (depth == 0)         s = 0;
+
+else                         s = -negamax(&n, depth - 1, -beta, -alpha, mode);
+
+if (s > best)  best = s;
+
+if (best > alpha) alpha = best;
+
+if (alpha >= beta) break;
+
+    }
+
+return any ? best : 0;
+
+}
+
+static int ai_pick(const board_t *b)
+
+{
+
+int moves[9], n = 0;
+
+for (int i = 0; i < 9; i++) if (!b->cell[i]) moves[n++] = i;
+
+if (!n) return -1;
+
+if (s_level == LEVEL_EASY && (esp_random() % 100) < 50)
+
+return moves[esp_random() % n];
+
+int depth = (s_level == LEVEL_EASY) ? 2 : (s_mode == MODE_CLASSIC ? 9 : 6);
+
+int best = -1000, cand[9], nc = 0;
+
+for (int k = 0; k < n; k++) {
+
+board_t nb = *b;
+
+int p = nb.turn;
+
+apply_move(&nb, moves[k], s_mode);
+
+int s;
+
+if (winner_line(&nb, p) >= 0) s = 10 + depth;
+
+else if (depth <= 1)          s = 0;
+
+else                          s = -negamax(&nb, depth - 1, -100, 100, s_mode);
+
+if (s > best) { best = s; nc = 0; }
+
+if (s == best) cand[nc++] = moves[k];
+
+    }
+
+return cand[esp_random() % nc];
+
+}
+
+/* ------------------------------------------------------------------ */
+
+/*  UI-Helfer                                                          */
+
+/* ------------------------------------------------------------------ */
+
+static void kill_timers(void)
+
+{
+
+if (s_ai_timer)    { lv_timer_del(s_ai_timer);    s_ai_timer = NULL; }
+
+if (s_round_timer) { lv_timer_del(s_round_timer); s_round_timer = NULL; }
+
+}
+
+static void prepare_screen(void)
+
+{
+
+kill_timers();
+
+lv_obj_t *scr = s_screen;
+
+lv_obj_clean(scr);
+
+lv_obj_set_style_bg_color(scr, COL_BG, 0);
+
+lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+
+lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+
+}
+
+static lv_obj_t *make_button(lv_obj_t *parent, const char *text, int w, int h,
+
+lv_color_t col, lv_event_cb_t cb)
+
+{
+
+lv_obj_t *btn = lv_btn_create(parent);
+
+lv_obj_set_size(btn, w, h);
+
+lv_obj_set_style_bg_color(btn, col, 0);
+
+lv_obj_set_style_radius(btn, h / 2, 0);
+
+lv_obj_set_style_shadow_width(btn, 0, 0);
+
+lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
+
+lv_obj_t *l = lv_label_create(btn);
+
+lv_label_set_text(l, text);
+
+lv_obj_set_style_text_font(l, &lv_font_montserrat_20, 0);
+
+lv_obj_set_style_text_color(l, COL_TEXT, 0);
+
+lv_obj_center(l);
+
+return btn;
+
+}
+
+static void zoom_cb(void *obj, int32_t v)
+
+{
+
+lv_obj_set_style_transform_zoom((lv_obj_t *)obj, v, 0);
+
+}
+
+static void pop_anim(lv_obj_t *o)
+
+{
+
+lv_anim_t a;
+
+lv_anim_init(&a);
+
+lv_anim_set_var(&a, o);
+
+lv_anim_set_exec_cb(&a, zoom_cb);
+
+lv_anim_set_values(&a, 150, 256);
+
+lv_anim_set_time(&a, 280);
+
+lv_anim_set_path_cb(&a, lv_anim_path_overshoot);
+
+lv_anim_start(&a);
+
+}
+
+/* ------------------------------------------------------------------ */
+
+/*  Menue                                                              */
+
+/* ------------------------------------------------------------------ */
+
+static const char *MAP_MODE[]  = { "Klassik", "Unendlich", "" };
+
+static const char *MAP_PLAYER[] = { "1 Spieler", "2 Spieler", "" };
+
+static const char *MAP_LEVEL[] = { "Leicht", "Schwer", "" };
+
+static void sel_cb(lv_event_t *e)
+
+{
+
+lv_obj_t *m = lv_event_get_target(e);
+
+int *dst = (int *)lv_event_get_user_data(e);
+
+*dst = (int)lv_btnmatrix_get_selected_btn(m);
+
+if (dst == &s_two && s_level_row) {
+
+if (s_two) lv_obj_add_flag(s_level_row, LV_OBJ_FLAG_HIDDEN);
+
+else       lv_obj_clear_flag(s_level_row, LV_OBJ_FLAG_HIDDEN);
+
+    }
+
+}
+
+static lv_obj_t *make_toggle(lv_obj_t *parent, const char **map, int y,
+
+int selected, int *target)
+
+{
+
+lv_obj_t *m = lv_btnmatrix_create(parent);
+
+lv_btnmatrix_set_map(m, map);
+
+lv_btnmatrix_set_btn_ctrl_all(m, LV_BTNMATRIX_CTRL_CHECKABLE);
+
+lv_btnmatrix_set_one_checked(m, true);
+
+lv_btnmatrix_set_btn_ctrl(m, selected, LV_BTNMATRIX_CTRL_CHECKED);
+
+lv_obj_set_size(m, 290, 56);
+
+lv_obj_align(m, LV_ALIGN_TOP_MID, 0, y);
+
+lv_obj_set_style_bg_opa(m, LV_OPA_TRANSP, LV_PART_MAIN);
+
+lv_obj_set_style_border_width(m, 0, LV_PART_MAIN);
+
+lv_obj_set_style_pad_all(m, 0, LV_PART_MAIN);
+
+lv_obj_set_style_pad_column(m, 10, LV_PART_MAIN);
+
+lv_obj_set_style_bg_color(m, COL_CELL, LV_PART_ITEMS);
+
+lv_obj_set_style_radius(m, 18, LV_PART_ITEMS);
+
+lv_obj_set_style_border_width(m, 0, LV_PART_ITEMS);
+
+lv_obj_set_style_shadow_width(m, 0, LV_PART_ITEMS);
+
+lv_obj_set_style_text_color(m, COL_DIM, LV_PART_ITEMS);
+
+lv_obj_set_style_text_font(m, &lv_font_montserrat_20, LV_PART_ITEMS);
+
+lv_obj_set_style_bg_color(m, COL_ACCENT, LV_PART_ITEMS | LV_STATE_CHECKED);
+
+lv_obj_set_style_text_color(m, COL_TEXT, LV_PART_ITEMS | LV_STATE_CHECKED);
+
+lv_obj_add_event_cb(m, sel_cb, LV_EVENT_VALUE_CHANGED, target);
+
+return m;
+
+}
+
+static void start_cb(lv_event_t *e)
+
+{
+
+    (void)e;
+
+s_score[1] = s_score[2] = 0;
+
+s_rounds = 0;
+
+game_create();
+
+}
+
+static void menu_create(void)
+
+{
+
+prepare_screen();
+
+lv_obj_t *scr = lv_scr_act();
+
+lv_obj_t *title = lv_label_create(scr);
+
+lv_label_set_recolor(title, true);
+
+lv_label_set_text(title, "#35E0FF TIC#  #E8ECF8 TAC#  #FF5C8A TOE#");
+
+lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+
+lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 52);
+
+make_toggle(scr, MAP_MODE,   108, s_mode, &s_mode);
+
+make_toggle(scr, MAP_PLAYER, 176, s_two,  &s_two);
+
+s_level_row = make_toggle(scr, MAP_LEVEL, 244, s_level, &s_level);
+
+if (s_two) lv_obj_add_flag(s_level_row, LV_OBJ_FLAG_HIDDEN);
+
+lv_obj_t *start = make_button(scr, LV_SYMBOL_PLAY "  Start", 210, 60, COL_ACCENT, start_cb);
+
+lv_obj_align(start, LV_ALIGN_TOP_MID, 0, 322);
+
+lv_obj_set_style_bg_grad_color(start, COL_X, 0);
+
+lv_obj_set_style_bg_grad_dir(start, LV_GRAD_DIR_HOR, 0);
+
+lv_obj_t *hint = lv_label_create(scr);
+
+lv_label_set_text(hint, "Unendlich: nur 3 Zeichen pro Spieler");
+
+lv_obj_set_style_text_color(hint, COL_DIM, 0);
+
+lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, 0);
+
+lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 400);
+
+}
+
+/* ------------------------------------------------------------------ */
+
+/*  Spielansicht                                                       */
+
+/* ------------------------------------------------------------------ */
+
+static void render(void)
+
+{
+
+int fade = -1;
+
+if (!s_over && s_mode == MODE_INFINITE && s_b.count[s_b.turn] == 3)
+
+fade = s_b.order[s_b.turn][0];   /* verschwindet beim naechsten Zug */
+
+for (int i = 0; i < 9; i++) {
+
+int c = s_b.cell[i];
+
+lv_label_set_text(s_lbl[i], c == 1 ? "X" : c == 2 ? "O" : "");
+
+lv_obj_set_style_text_color(s_lbl[i], c == 1 ? COL_X : COL_O, 0);
+
+lv_obj_set_style_text_opa(s_lbl[i], i == fade ? LV_OPA_30 : LV_OPA_COVER, 0);
+
+bool w = s_line >= 0 && (i == LINES[s_line][0] || i == LINES[s_line][1] ||
+
+i == LINES[s_line][2]);
+
+lv_obj_set_style_border_width(s_cell[i], w ? 4 : 0, 0);
+
+    }
+
+/* Status */
+
+const char *txt;
+
+lv_color_t col = COL_TEXT;
+
+if (s_over) {
+
+if (s_winner == 0)      { txt = "Unentschieden"; col = COL_DIM; }
+
+else if (s_two)         { txt = s_winner == 1 ? "X gewinnt!" : "O gewinnt!"; col = COL_WIN; }
+
+else                    { txt = s_winner == 1 ? "Du gewinnst!" : "KI gewinnt!"; col = COL_WIN; }
+
     } else {
-        lv_obj_set_style_text_color(label, lv_color_white(), 0);
-        lv_obj_set_style_shadow_opa(label, LV_OPA_TRANSP, 0);
+
+if (s_two) { txt = s_b.turn == 1 ? "X ist dran" : "O ist dran"; }
+
+else       { txt = s_b.turn == 1 ? "Du (X) bist dran" : "KI denkt..."; }
+
+col = s_b.turn == 1 ? COL_X : COL_O;
+
     }
+
+lv_label_set_text(s_status, txt);
+
+lv_obj_set_style_text_color(s_status, col, 0);
+
+lv_label_set_text_fmt(s_scorelbl, "X  %d  :  %d  O", s_score[1], s_score[2]);
+
 }
 
-static void update_all_cells(void)
-{
-    for (int r = 0; r < BOARD_SIZE; r++)
-        for (int c = 0; c < BOARD_SIZE; c++)
-            update_cell(r, c);
-}
+static void ai_cb(lv_timer_t *t);
 
-static void update_header(void)
+static void do_move(int idx);
+
+static void schedule_ai(void)
+
 {
-    if (mode_label) lv_label_set_text_fmt(mode_label, "%s", tr(mode_name_en(mode), mode_name_de(mode)));
-    if (score_label) {
-        if (mode == TTT_MODE_CLASSIC || mode == TTT_MODE_ENDLESS)
-            lv_label_set_text_fmt(score_label, "X  %d   :   %d  O", player_score, opponent_score);
-        else
-            lv_label_set_text_fmt(score_label, "X  %d   :   %d  O", player_score, opponent_score);
+
+if (!s_two && !s_over && s_b.turn == 2 && !s_ai_timer) {
+
+s_ai_timer = lv_timer_create(ai_cb, 500, NULL);
+
+lv_timer_set_repeat_count(s_ai_timer, 1);
+
     }
+
 }
 
-static void set_status(const char *en, const char *de)
+static void reset_board(void)
+
 {
-    if (status_label) lv_label_set_text(status_label, tr(en, de));
+
+for (int i = 0; i < 9; i++) s_b.cell[i] = 0;
+
+for (int p = 0; p < 3; p++) {
+
+s_b.count[p] = 0;
+
+for (int k = 0; k < 5; k++) s_b.order[p][k] = 0;
+
+    }
+
+s_b.turn = (s_rounds % 2 == 0) ? 1 : 2;   /* Anfaenger wechselt */
+
+s_over = false;
+
+s_winner = 0;
+
+s_line = -1;
+
 }
 
-static void start_round(void)
+static void round_cb(lv_timer_t *t)
+
 {
-    board_reset();
-    update_all_cells();
-    update_header();
-    set_status("Your turn • X", "Du bist dran • X");
+
+    (void)t;
+
+s_round_timer = NULL;
+
+s_rounds++;
+
+reset_board();
+
+render();
+
+schedule_ai();
+
 }
 
-static void new_game(void)
+static void ai_cb(lv_timer_t *t)
+
 {
-    player_score = 0;
-    opponent_score = 0;
-    start_round();
-    audio_play_test_tone(30, false);
+
+    (void)t;
+
+s_ai_timer = NULL;
+
+if (s_over) return;
+
+int m = ai_pick(&s_b);
+
+if (m >= 0) do_move(m);
+
 }
 
-static void finish_round(char winner)
-{
-    game_over = true;
+static void do_move(int idx)
 
-    if (winner == 'X') {
-        player_score++;
-        set_status("YOU WIN", "DU GEWINNST");
-        audio_play_test_tone(60, false);
-    } else if (winner == 'O') {
-        opponent_score++;
-        set_status(mode == TTT_MODE_TWO_PLAYER || mode == TTT_MODE_TWO_PLAYER_ENDLESS ?
-                   "PLAYER O WINS" : "COMPUTER WINS",
-                   mode == TTT_MODE_TWO_PLAYER || mode == TTT_MODE_TWO_PLAYER_ENDLESS ?
-                   "SPIELER O GEWINNT" : "COMPUTER GEWINNT");
-        audio_play_test_tone(45, false);
+{
+
+int p = s_b.turn;
+
+apply_move(&s_b, idx, s_mode);
+
+int l = winner_line(&s_b, p);
+
+if (l >= 0) {
+
+s_over = true; s_winner = p; s_line = l; s_score[p]++;
+
+    } else if (s_mode == MODE_CLASSIC && board_full(&s_b)) {
+
+s_over = true; s_winner = 0;
+
+    }
+
+render();
+
+pop_anim(s_cell[idx]);
+
+if (s_over) {
+
+s_round_timer = lv_timer_create(round_cb, 2800, NULL);
+
+lv_timer_set_repeat_count(s_round_timer, 1);
+
     } else {
-        set_status("DRAW", "UNENTSCHIEDEN");
-    }
-    update_header();
 
-    if (mode == TTT_MODE_ENDLESS || mode == TTT_MODE_TWO_PLAYER_ENDLESS) {
-        /* Keep the score and make the next round one tap away. */
+schedule_ai();
+
     }
+
 }
 
 static void cell_cb(lv_event_t *e)
+
 {
-    if (game_over) return;
 
-    int index = (int)(intptr_t)lv_event_get_user_data(e);
-    int row = index / BOARD_SIZE;
-    int col = index % BOARD_SIZE;
-    if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE || board[row][col] != 0) return;
+int idx = (int)(intptr_t)lv_event_get_user_data(e);
 
-    if ((mode == TTT_MODE_CLASSIC || mode == TTT_MODE_ENDLESS) && current_player != 'X') return;
+if (s_over || s_ai_timer || s_b.cell[idx]) return;
 
-    board[row][col] = current_player;
-    update_cell(row, col);
-    audio_play_test_tone(25, false);
+if (!s_two && s_b.turn == 2) return;
 
-    if (board_has_winner(current_player)) {
-        finish_round(current_player);
-        return;
-    }
-    if (board_full()) {
-        finish_round(0);
-        return;
-    }
+do_move(idx);
 
-    if (mode == TTT_MODE_CLASSIC || mode == TTT_MODE_ENDLESS) {
-        current_player = 'O';
-        set_status("Computer thinking...", "Computer denkt...");
-        ai_move();
-        update_all_cells();
-
-        if (board_has_winner('O')) {
-            finish_round('O');
-            return;
-        }
-        if (board_full()) {
-            finish_round(0);
-            return;
-        }
-        current_player = 'X';
-        set_status("Your turn • X", "Du bist dran • X");
-    } else {
-        current_player = (current_player == 'X') ? 'O' : 'X';
-        if (current_player == 'X') set_status("Player X", "Spieler X");
-        else set_status("Player O", "Spieler O");
-    }
 }
 
-static void next_round_cb(lv_event_t *e)
+static void menu_btn_cb(lv_event_t *e) { (void)e; menu_create(); }
+
+static void back_btn_cb(lv_event_t *e)
 {
-    LV_UNUSED(e);
-    start_round();
+    (void)e;
+    kill_timers();
+    if (s_back_callback) s_back_callback();
 }
 
-static void close_menu(void)
+static void restart_cb(lv_event_t *e)
+
 {
-    if (menu_panel) lv_obj_add_flag(menu_panel, LV_OBJ_FLAG_HIDDEN);
+
+    (void)e;
+
+kill_timers();
+
+s_score[1] = s_score[2] = 0;
+
+s_rounds = 0;
+
+reset_board();
+
+render();
+
+schedule_ai();
+
 }
 
-static void menu_button_cb(lv_event_t *e)
+static void game_create(void)
+
 {
-    LV_UNUSED(e);
-    if (menu_panel) lv_obj_clear_flag(menu_panel, LV_OBJ_FLAG_HIDDEN);
-}
 
-static void close_menu_button_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    close_menu();
-}
+prepare_screen();
 
-static void back_button_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    close_menu();
-    if (back_callback) back_callback();
-}
+lv_obj_t *scr = lv_scr_act();
 
-static void new_game_button_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    close_menu();
-    new_game();
-}
+s_status = lv_label_create(scr);
 
-static void mode_select_cb(lv_event_t *e)
-{
-    int selected = (int)(intptr_t)lv_event_get_user_data(e);
-    mode = (ttt_mode_t)selected;
-    close_menu();
-    new_game();
-}
+lv_obj_set_style_text_font(s_status, &lv_font_montserrat_28, 0);
 
-static void neon_animation_tick(lv_timer_t *timer)
-{
-    LV_UNUSED(timer);
-    neon_phase += 5;
-    if (!board_frame) return;
+lv_obj_align(s_status, LV_ALIGN_TOP_MID, 0, 52);
 
-    int pulse = (neon_phase % 180 < 90) ? 88 : 62;
-    lv_obj_set_style_shadow_opa(board_frame, pulse, 0);
-    lv_obj_set_style_shadow_width(board_frame, (pulse > 80) ? 18 : 12, 0);
-}
+s_scorelbl = lv_label_create(scr);
 
-static void cleanup_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    if (neon_timer) {
-        lv_timer_del(neon_timer);
-        neon_timer = NULL;
-    }
-    board_frame = NULL;
-    menu_panel = NULL;
-    status_label = NULL;
-    score_label = NULL;
-    mode_label = NULL;
-}
+lv_obj_set_style_text_font(s_scorelbl, &lv_font_montserrat_20, 0);
 
-static lv_obj_t *make_action_button(lv_obj_t *parent, const char *text, lv_coord_t w, lv_coord_t h)
-{
-    lv_obj_t *button = lv_button_create(parent);
-    lv_obj_set_size(button, w, h);
-    lv_obj_set_style_bg_color(button, lv_color_hex(0x101B28), LV_PART_MAIN);
-    lv_obj_set_style_border_color(button, lv_color_hex(0x39FF66), LV_PART_MAIN);
-    lv_obj_set_style_border_width(button, 1, LV_PART_MAIN);
-    lv_obj_set_style_radius(button, 12, LV_PART_MAIN);
-    lv_obj_set_style_shadow_color(button, lv_color_hex(0x39FF66), LV_PART_MAIN);
-    lv_obj_set_style_shadow_opa(button, LV_OPA_30, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(button, 8, LV_PART_MAIN);
+lv_obj_set_style_text_color(s_scorelbl, COL_DIM, 0);
 
-    lv_obj_t *label = lv_label_create(button);
-    lv_label_set_text(label, text);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_18, 0);
-    lv_obj_center(label);
-    return button;
-}
+lv_obj_align(s_scorelbl, LV_ALIGN_TOP_MID, 0, 88);
 
-static void build_menu(lv_obj_t *parent)
-{
-    menu_panel = lv_obj_create(parent);
-    lv_obj_set_size(menu_panel, 320, 330);
-    lv_obj_center(menu_panel);
-    lv_obj_set_style_bg_color(menu_panel, lv_color_hex(0x071018), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(menu_panel, LV_OPA_100, LV_PART_MAIN);
-    lv_obj_set_style_border_color(menu_panel, lv_color_hex(0x39FF66), LV_PART_MAIN);
-    lv_obj_set_style_border_width(menu_panel, 2, LV_PART_MAIN);
-    lv_obj_set_style_radius(menu_panel, 18, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(menu_panel, 14, LV_PART_MAIN);
+for (int i = 0; i < 9; i++) {
 
-    lv_obj_t *title = lv_label_create(menu_panel);
-    lv_label_set_text(title, tr("GAME MODE", "SPIELMODUS"));
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(title, lv_color_hex(0x39FF66), 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 8);
+int r = i / 3, c = i % 3;
 
-    const char *labels_en[] = {"Classic", "Endless", "2 Players", "2P Endless"};
-    const char *labels_de[] = {"Klassisch", "Unendlich", "2 Spieler", "2P Unendlich"};
+lv_obj_t *b = lv_btn_create(scr);
 
-    for (int i = 0; i < 4; i++) {
-        lv_obj_t *button = make_action_button(menu_panel,
-            tr(labels_en[i], labels_de[i]), 270, 44);
-        lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 48 + i * 52);
-        lv_obj_add_event_cb(button, mode_select_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+lv_obj_set_size(b, CELL_SIZE, CELL_SIZE);
+
+lv_obj_set_pos(b, GRID_LEFT + c * (CELL_SIZE + CELL_GAP),
+
+GRID_TOP  + r * (CELL_SIZE + CELL_GAP));
+
+lv_obj_set_style_bg_color(b, COL_CELL, 0);
+
+lv_obj_set_style_bg_color(b, COL_CELL_P, LV_STATE_PRESSED);
+
+lv_obj_set_style_radius(b, 22, 0);
+
+lv_obj_set_style_shadow_width(b, 0, 0);
+
+lv_obj_set_style_border_color(b, COL_WIN, 0);
+
+lv_obj_set_style_border_width(b, 0, 0);
+
+lv_obj_set_style_transform_pivot_x(b, CELL_SIZE / 2, 0);
+
+lv_obj_set_style_transform_pivot_y(b, CELL_SIZE / 2, 0);
+
+lv_obj_add_event_cb(b, cell_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+
+lv_obj_t *l = lv_label_create(b);
+
+lv_obj_set_style_text_font(l, &lv_font_montserrat_32, 0);
+
+lv_label_set_text(l, "");
+
+lv_obj_center(l);
+
+s_cell[i] = b;
+
+s_lbl[i]  = l;
+
     }
 
-    lv_obj_t *close = make_action_button(menu_panel, LV_SYMBOL_CLOSE, 44, 38);
-    lv_obj_align(close, LV_ALIGN_TOP_RIGHT, 0, 0);
-    lv_obj_add_event_cb(close, close_menu_button_cb, LV_EVENT_CLICKED, NULL);
+lv_obj_t *bm = make_button(scr, LV_SYMBOL_HOME, 100, 42, COL_CELL, back_btn_cb);
+
+lv_obj_align(bm, LV_ALIGN_TOP_MID, -55, 388);
+
+lv_obj_t *br = make_button(scr, LV_SYMBOL_REFRESH, 100, 42, COL_ACCENT, restart_cb);
+
+lv_obj_align(br, LV_ALIGN_TOP_MID, 55, 388);
+
+reset_board();
+
+render();
+
+schedule_ai();
+
 }
 
-void tic_tac_toe_open(lv_obj_t *target_screen, tic_tac_toe_back_cb_t back_cb)
+/* ------------------------------------------------------------------ */
+
+/*  Einstiegspunkt                                                     */
+
+/* ------------------------------------------------------------------ */
+
+void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
 {
-    if (!target_screen) return;
-
-    screen = target_screen;
-    back_callback = back_cb;
-    player_score = 0;
-    opponent_score = 0;
-    mode = TTT_MODE_CLASSIC;
-    board_reset();
-
-    lv_obj_t *title = lv_label_create(screen);
-    lv_label_set_text(title, "TIC TAC TOE");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_color(title, lv_color_white(), 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 16);
-
-    mode_label = lv_label_create(screen);
-    lv_obj_set_style_text_font(mode_label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(mode_label, lv_color_hex(0x39FF66), 0);
-    lv_obj_align(mode_label, LV_ALIGN_TOP_MID, 0, 47);
-
-    score_label = lv_label_create(screen);
-    lv_obj_set_style_text_font(score_label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(score_label, lv_color_hex(0xB8C7D9), 0);
-    lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, 68);
-
-    status_label = lv_label_create(screen);
-    lv_obj_set_style_text_font(status_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(status_label, lv_color_white(), 0);
-    lv_obj_align(status_label, LV_ALIGN_TOP_MID, 0, 92);
-
-    lv_obj_t *back = make_action_button(screen, LV_SYMBOL_LEFT, 40, 40);
-    lv_obj_align(back, LV_ALIGN_TOP_LEFT, 8, 10);
-    lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
-
-    lv_obj_t *menu = make_action_button(screen, LV_SYMBOL_LIST, 40, 40);
-    lv_obj_align(menu, LV_ALIGN_TOP_RIGHT, -8, 10);
-    lv_obj_add_event_cb(menu, menu_button_cb, LV_EVENT_CLICKED, NULL);
-
-    /* The board is a real centered object. Touch targets and neon cage share its coordinate system. */
-    board_frame = lv_obj_create(screen);
-    lv_obj_set_size(board_frame, 324, 324);
-    lv_obj_align(board_frame, LV_ALIGN_CENTER, 0, 24);
-    lv_obj_set_style_bg_opa(board_frame, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_color(board_frame, lv_color_hex(0x39FF66), LV_PART_MAIN);
-    lv_obj_set_style_border_width(board_frame, 2, LV_PART_MAIN);
-    lv_obj_set_style_radius(board_frame, 22, LV_PART_MAIN);
-    lv_obj_set_style_shadow_color(board_frame, lv_color_hex(0x39FF66), LV_PART_MAIN);
-    lv_obj_set_style_shadow_opa(board_frame, LV_OPA_70, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(board_frame, 14, LV_PART_MAIN);
-    lv_obj_clear_flag(board_frame, LV_OBJ_FLAG_SCROLLABLE);
-
-    const int cell = 94;
-    const int gap = 11;
-    const int origin = 15;
-
-    for (int r = 0; r < BOARD_SIZE; r++) {
-        for (int c = 0; c < BOARD_SIZE; c++) {
-            lv_obj_t *button = lv_button_create(board_frame);
-            lv_obj_set_size(button, cell, cell);
-            lv_obj_set_pos(button, origin + c * (cell + gap), origin + r * (cell + gap));
-            lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
-            lv_obj_set_style_border_width(button, 0, LV_PART_MAIN);
-            lv_obj_set_style_radius(button, 0, LV_PART_MAIN);
-            lv_obj_set_style_shadow_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
-            lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
-
-            lv_obj_t *label = lv_label_create(button);
-            lv_label_set_text(label, " ");
-            lv_obj_set_style_text_font(label, &lv_font_montserrat_32, 0);
-            lv_obj_center(label);
-
-            board_buttons[r][c] = button;
-            lv_obj_add_event_cb(button, cell_cb, LV_EVENT_CLICKED,
-                                (void *)(intptr_t)(r * BOARD_SIZE + c));
-        }
-    }
-
-    /* Neon cage: thin rails replace the heavy square grid. */
-    lv_obj_t *rail1 = lv_obj_create(board_frame);
-    lv_obj_set_size(rail1, 2, 286);
-    lv_obj_set_pos(rail1, 107, 19);
-    lv_obj_set_style_bg_color(rail1, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_color(rail1, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_width(rail1, 10, 0);
-    lv_obj_set_style_shadow_opa(rail1, LV_OPA_70, 0);
-    lv_obj_t *rail2 = lv_obj_create(board_frame);
-    lv_obj_set_size(rail2, 2, 286);
-    lv_obj_set_pos(rail2, 215, 19);
-    lv_obj_set_style_bg_color(rail2, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_color(rail2, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_width(rail2, 10, 0);
-    lv_obj_set_style_shadow_opa(rail2, LV_OPA_70, 0);
-    lv_obj_move_to_index(rail1, 0);
-    lv_obj_move_to_index(rail2, 0);
-
-    lv_obj_t *rail3 = lv_obj_create(board_frame);
-    lv_obj_set_size(rail3, 286, 2);
-    lv_obj_set_pos(rail3, 19, 107);
-    lv_obj_set_style_bg_color(rail3, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_color(rail3, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_width(rail3, 10, 0);
-    lv_obj_set_style_shadow_opa(rail3, LV_OPA_70, 0);
-    lv_obj_t *rail4 = lv_obj_create(board_frame);
-    lv_obj_set_size(rail4, 286, 2);
-    lv_obj_set_pos(rail4, 19, 215);
-    lv_obj_set_style_bg_color(rail4, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_color(rail4, lv_color_hex(0x39FF66), 0);
-    lv_obj_set_style_shadow_width(rail4, 10, 0);
-    lv_obj_set_style_shadow_opa(rail4, LV_OPA_70, 0);
-    lv_obj_move_to_index(rail3, 0);
-    lv_obj_move_to_index(rail4, 0);
-
-    lv_obj_t *new_game = make_action_button(screen, LV_SYMBOL_REFRESH, 42, 42);
-    lv_obj_align(new_game, LV_ALIGN_BOTTOM_RIGHT, -8, -10);
-    lv_obj_add_event_cb(new_game, new_game_button_cb, LV_EVENT_CLICKED, NULL);
-
-    lv_obj_t *round = make_action_button(screen, LV_SYMBOL_PLAY, 42, 42);
-    lv_obj_align(round, LV_ALIGN_BOTTOM_LEFT, 8, -10);
-    lv_obj_add_event_cb(round, next_round_cb, LV_EVENT_CLICKED, NULL);
-
-    build_menu(screen);
-    lv_obj_add_flag(menu_panel, LV_OBJ_FLAG_HIDDEN);
-
-    update_header();
-    set_status("Your turn • X", "Du bist dran • X");
-
-    neon_timer = lv_timer_create(neon_animation_tick, 45, NULL);
-    lv_obj_add_event_cb(screen, cleanup_cb, LV_EVENT_DELETE, NULL);
+    s_screen = screen;
+    s_back_callback = back_cb;
+    menu_create();
 }
