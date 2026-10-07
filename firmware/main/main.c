@@ -46,6 +46,7 @@ static bool gesture_registered = false;
 static esp_codec_dev_handle_t speaker_codec = NULL;
 static TaskHandle_t tone_task_handle = NULL;
 static volatile int tone_request_volume = -1;
+static TickType_t last_tone_tick = 0;
 
 static void screensaver_wake_cb(lv_event_t *e);
 static void build_launcher(void);
@@ -412,7 +413,10 @@ static void tone_task(void *arg)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         int requested_volume = tone_request_volume;
         tone_request_volume = -1;
-        if (requested_volume > 0) {
+        TickType_t now = xTaskGetTickCount();
+        if (requested_volume > 0 &&
+            (last_tone_tick == 0 || now - last_tone_tick >= pdMS_TO_TICKS(140))) {
+            last_tone_tick = now;
             play_test_tone_blocking(requested_volume);
         }
     }
