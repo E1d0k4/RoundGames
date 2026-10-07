@@ -18,6 +18,7 @@
 #include "theme.h"
 #include "screensaver.h"
 #include "settings_ui.h"
+#include "tic_tac_toe.h"
 
 static const char *TAG = "roundgames";
 
@@ -420,13 +421,20 @@ static void build_info_page(void)
 }
 
 
-static void launcher_game_action(int game_index, const char *name)
+static void tic_tac_toe_back(void)
 {
     activity_reset();
+    build_launcher();
+}
+
+static void launcher_game_action(int game_index, const char *name)
+{
+    LV_UNUSED(name);
+    activity_reset();
+
     if (game_index == 0) {
-        show_status("Tic-Tac-Toe",
-                    tr("Game module will be added next.",
-                       "Spielmodul kommt als Nächstes."));
+        clear_screen();
+        tic_tac_toe_open(lv_scr_act(), tic_tac_toe_back);
     } else {
         char msg[64];
         snprintf(msg, sizeof(msg), "%s\n%s",
