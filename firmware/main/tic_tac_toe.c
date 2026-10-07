@@ -191,7 +191,7 @@ static void start_round(void)
     board_reset();
     update_all_cells();
     update_header();
-    set_status(tr("Your turn • X", "Du bist dran • X"), tr("Du bist dran • X", "Du bist dran • X"));
+    set_status("Your turn • X", "Du bist dran • X");
 }
 
 static void new_game(void)
@@ -291,6 +291,12 @@ static void menu_button_cb(lv_event_t *e)
     if (menu_panel) lv_obj_clear_flag(menu_panel, LV_OBJ_FLAG_HIDDEN);
 }
 
+static void close_menu_button_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    close_menu();
+}
+
 static void back_button_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
@@ -360,7 +366,7 @@ static lv_obj_t *make_action_button(lv_obj_t *parent, const char *text, lv_coord
 static void build_menu(lv_obj_t *parent)
 {
     menu_panel = lv_obj_create(parent);
-    lv_obj_set_size(menu_panel, 300, 340);
+    lv_obj_set_size(menu_panel, 320, 330);
     lv_obj_center(menu_panel);
     lv_obj_set_style_bg_color(menu_panel, lv_color_hex(0x071018), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(menu_panel, LV_OPA_100, LV_PART_MAIN);
@@ -380,14 +386,14 @@ static void build_menu(lv_obj_t *parent)
 
     for (int i = 0; i < 4; i++) {
         lv_obj_t *button = make_action_button(menu_panel,
-            tr(labels_en[i], labels_de[i]), 250, 48);
-        lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 45 + i * 57);
+            tr(labels_en[i], labels_de[i]), 270, 44);
+        lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 48 + i * 52);
         lv_obj_add_event_cb(button, mode_select_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     }
 
     lv_obj_t *close = make_action_button(menu_panel, LV_SYMBOL_CLOSE, 44, 38);
     lv_obj_align(close, LV_ALIGN_TOP_RIGHT, 0, 0);
-    lv_obj_add_event_cb(close, menu_button_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(close, close_menu_button_cb, LV_EVENT_CLICKED, NULL);
 }
 
 void tic_tac_toe_open(lv_obj_t *target_screen, tic_tac_toe_back_cb_t back_cb)
@@ -432,8 +438,8 @@ void tic_tac_toe_open(lv_obj_t *target_screen, tic_tac_toe_back_cb_t back_cb)
 
     /* The board is a real centered object. Touch targets and neon cage share its coordinate system. */
     board_frame = lv_obj_create(screen);
-    lv_obj_set_size(board_frame, 292, 292);
-    lv_obj_align(board_frame, LV_ALIGN_CENTER, 0, 28);
+    lv_obj_set_size(board_frame, 324, 324);
+    lv_obj_align(board_frame, LV_ALIGN_CENTER, 0, 24);
     lv_obj_set_style_bg_opa(board_frame, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_color(board_frame, lv_color_hex(0x39FF66), LV_PART_MAIN);
     lv_obj_set_style_border_width(board_frame, 2, LV_PART_MAIN);
@@ -443,26 +449,24 @@ void tic_tac_toe_open(lv_obj_t *target_screen, tic_tac_toe_back_cb_t back_cb)
     lv_obj_set_style_shadow_width(board_frame, 14, LV_PART_MAIN);
     lv_obj_clear_flag(board_frame, LV_OBJ_FLAG_SCROLLABLE);
 
-    const int cell = 84;
-    const int gap = 10;
-    const int origin = 10;
+    const int cell = 94;
+    const int gap = 11;
+    const int origin = 15;
 
     for (int r = 0; r < BOARD_SIZE; r++) {
         for (int c = 0; c < BOARD_SIZE; c++) {
             lv_obj_t *button = lv_button_create(board_frame);
             lv_obj_set_size(button, cell, cell);
             lv_obj_set_pos(button, origin + c * (cell + gap), origin + r * (cell + gap));
-            lv_obj_set_style_bg_color(button, lv_color_hex(0x08121C), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(button, LV_OPA_70, LV_PART_MAIN);
-            lv_obj_set_style_border_color(button, lv_color_hex(0x1C3142), LV_PART_MAIN);
-            lv_obj_set_style_border_width(button, 1, LV_PART_MAIN);
-            lv_obj_set_style_radius(button, 14, LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_set_style_border_width(button, 0, LV_PART_MAIN);
+            lv_obj_set_style_radius(button, 0, LV_PART_MAIN);
             lv_obj_set_style_shadow_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
             lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
 
             lv_obj_t *label = lv_label_create(button);
             lv_label_set_text(label, " ");
-            lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_32, 0);
             lv_obj_center(label);
 
             board_buttons[r][c] = button;
@@ -471,23 +475,40 @@ void tic_tac_toe_open(lv_obj_t *target_screen, tic_tac_toe_back_cb_t back_cb)
         }
     }
 
-    /* Four subtle lightning rails, inside the centered frame. */
+    /* Neon cage: thin rails replace the heavy square grid. */
     lv_obj_t *rail1 = lv_obj_create(board_frame);
-    lv_obj_set_size(rail1, 2, 250);
-    lv_obj_set_pos(rail1, 96, 20);
+    lv_obj_set_size(rail1, 2, 286);
+    lv_obj_set_pos(rail1, 107, 19);
     lv_obj_set_style_bg_color(rail1, lv_color_hex(0x39FF66), 0);
     lv_obj_set_style_shadow_color(rail1, lv_color_hex(0x39FF66), 0);
     lv_obj_set_style_shadow_width(rail1, 10, 0);
     lv_obj_set_style_shadow_opa(rail1, LV_OPA_70, 0);
     lv_obj_t *rail2 = lv_obj_create(board_frame);
-    lv_obj_set_size(rail2, 2, 250);
-    lv_obj_set_pos(rail2, 194, 20);
+    lv_obj_set_size(rail2, 2, 286);
+    lv_obj_set_pos(rail2, 215, 19);
     lv_obj_set_style_bg_color(rail2, lv_color_hex(0x39FF66), 0);
     lv_obj_set_style_shadow_color(rail2, lv_color_hex(0x39FF66), 0);
     lv_obj_set_style_shadow_width(rail2, 10, 0);
     lv_obj_set_style_shadow_opa(rail2, LV_OPA_70, 0);
     lv_obj_move_to_index(rail1, 0);
     lv_obj_move_to_index(rail2, 0);
+
+    lv_obj_t *rail3 = lv_obj_create(board_frame);
+    lv_obj_set_size(rail3, 286, 2);
+    lv_obj_set_pos(rail3, 19, 107);
+    lv_obj_set_style_bg_color(rail3, lv_color_hex(0x39FF66), 0);
+    lv_obj_set_style_shadow_color(rail3, lv_color_hex(0x39FF66), 0);
+    lv_obj_set_style_shadow_width(rail3, 10, 0);
+    lv_obj_set_style_shadow_opa(rail3, LV_OPA_70, 0);
+    lv_obj_t *rail4 = lv_obj_create(board_frame);
+    lv_obj_set_size(rail4, 286, 2);
+    lv_obj_set_pos(rail4, 19, 215);
+    lv_obj_set_style_bg_color(rail4, lv_color_hex(0x39FF66), 0);
+    lv_obj_set_style_shadow_color(rail4, lv_color_hex(0x39FF66), 0);
+    lv_obj_set_style_shadow_width(rail4, 10, 0);
+    lv_obj_set_style_shadow_opa(rail4, LV_OPA_70, 0);
+    lv_obj_move_to_index(rail3, 0);
+    lv_obj_move_to_index(rail4, 0);
 
     lv_obj_t *new_game = make_action_button(screen, LV_SYMBOL_REFRESH, 42, 42);
     lv_obj_align(new_game, LV_ALIGN_BOTTOM_RIGHT, -8, -10);
