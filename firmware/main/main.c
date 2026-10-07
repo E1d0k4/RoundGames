@@ -209,23 +209,32 @@ static void clock_adjust_cb(lv_event_t *e)
     build_clock_page();
 }
 
+static void settings_async_cb(void *user_data)
+{
+    LV_UNUSED(user_data);
+    build_settings_menu();
+}
+
+static void launcher_async_cb(void *user_data)
+{
+    LV_UNUSED(user_data);
+    build_launcher();
+}
+
 static void gesture_bottom_cb(void)
 {
-    if (launcher_active) {
-        build_settings_menu();
-    } else {
-        build_settings_menu();
-    }
+    /* Defer screen rebuild until the current gesture event has finished. */
+    lv_async_call(settings_async_cb, NULL);
 }
 
 static void gesture_left_cb(void)
 {
-    build_launcher();
+    lv_async_call(launcher_async_cb, NULL);
 }
 
 static void gesture_right_cb(void)
 {
-    build_launcher();
+    lv_async_call(launcher_async_cb, NULL);
 }
 
 static void settings_menu_cb(lv_event_t *e)
