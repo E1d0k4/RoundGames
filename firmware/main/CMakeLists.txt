@@ -1,4 +1,4 @@
 idf_component_register(
-    SRCS "main.c" "audio.c" "language.c" "settings.c" "clock.c" "theme.c" "screensaver.c" "display.c"
+    SRCS "main.c" "audio.c" "language.c" "settings.c" "clock.c" "theme.c" "screensaver.c" "display.c" "input.c"
     INCLUDE_DIRS "."
 )
