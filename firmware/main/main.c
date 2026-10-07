@@ -180,8 +180,9 @@ static void set_volume(int value)
     save_settings(); activity_reset();
 }
 static void volume_slider_cb(lv_event_t *e) { set_volume(lv_slider_get_value(lv_event_get_target(e))); }
-static void volume_minus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume - 10); }
-static void volume_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume + 10); }
+static void volume_slider_release_cb(lv_event_t *e) { LV_UNUSED(e); play_test_tone(); }
+static void volume_minus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume - 10); play_test_tone(); }
+static void volume_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume + 10); play_test_tone(); }
 
 static void mute_cb(lv_event_t *e) { LV_UNUSED(e); sound_muted = !sound_muted; if (speaker_codec) esp_codec_dev_set_out_vol(speaker_codec, sound_muted ? 0 : current_volume); save_settings(); build_volume_page(); }
 
@@ -327,14 +328,14 @@ static void build_brightness_page(void)
 
     lv_obj_t *n=lv_label_create(s); lv_label_set_text(n,"Normal"); lv_obj_align(n,LV_ALIGN_TOP_LEFT,42,70);
     brightness_value_label=lv_label_create(s); lv_label_set_text_fmt(brightness_value_label,"%d%%",current_brightness); lv_obj_align(brightness_value_label,LV_ALIGN_TOP_RIGHT,-42,70);
-    brightness_slider=lv_slider_create(s); lv_obj_set_width(brightness_slider,300); lv_slider_set_range(brightness_slider,10,100); lv_slider_set_value(brightness_slider,current_brightness,LV_ANIM_OFF); lv_obj_align(brightness_slider,LV_ALIGN_TOP_MID,0,112); lv_obj_add_event_cb(brightness_slider,brightness_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    brightness_slider=lv_slider_create(s); lv_obj_set_width(brightness_slider,260); lv_slider_set_range(brightness_slider,10,100); lv_slider_set_value(brightness_slider,current_brightness,LV_ANIM_OFF); lv_obj_align(brightness_slider,LV_ALIGN_TOP_MID,0,112); lv_obj_add_event_cb(brightness_slider,brightness_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
 
     lv_obj_t *bm=lv_button_create(s); lv_obj_set_size(bm,55,42); lv_obj_align(bm,LV_ALIGN_TOP_LEFT,28,102); style_option_button(bm,false); lv_obj_t *bml=lv_label_create(bm); lv_label_set_text(bml,"-"); lv_obj_center(bml); lv_obj_add_event_cb(bm,brightness_minus_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *bp=lv_button_create(s); lv_obj_set_size(bp,55,42); lv_obj_align(bp,LV_ALIGN_TOP_RIGHT,-28,102); style_option_button(bp,false); lv_obj_t *bpl=lv_label_create(bp); lv_label_set_text(bpl,"+"); lv_obj_center(bpl); lv_obj_add_event_cb(bp,brightness_plus_cb,LV_EVENT_CLICKED,NULL);
 
     lv_obj_t *d=lv_label_create(s); lv_label_set_text(d,tr("Dim","Dimmen")); lv_obj_align(d,LV_ALIGN_TOP_LEFT,42,172);
     dim_value_label=lv_label_create(s); lv_label_set_text_fmt(dim_value_label,"%d%%",dim_brightness); lv_obj_align(dim_value_label,LV_ALIGN_TOP_RIGHT,-42,172);
-    dim_slider=lv_slider_create(s); lv_obj_set_width(dim_slider,300); lv_slider_set_range(dim_slider,5,50); lv_slider_set_value(dim_slider,dim_brightness,LV_ANIM_OFF); lv_obj_align(dim_slider,LV_ALIGN_TOP_MID,0,194); lv_obj_add_event_cb(dim_slider,dim_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    dim_slider=lv_slider_create(s); lv_obj_set_width(dim_slider,260); lv_slider_set_range(dim_slider,5,50); lv_slider_set_value(dim_slider,dim_brightness,LV_ANIM_OFF); lv_obj_align(dim_slider,LV_ALIGN_TOP_MID,0,194); lv_obj_add_event_cb(dim_slider,dim_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
     lv_obj_t *dm=lv_button_create(s); lv_obj_set_size(dm,55,42); lv_obj_align(dm,LV_ALIGN_TOP_LEFT,28,184); style_option_button(dm,false); lv_obj_t *dml=lv_label_create(dm); lv_label_set_text(dml,"-"); lv_obj_center(dml); lv_obj_add_event_cb(dm,dim_minus_cb,LV_EVENT_CLICKED,NULL);
     lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,55,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-28,184); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
 
@@ -388,27 +389,24 @@ static void play_test_tone(void)
     esp_codec_dev_close(speaker_codec);
 }
 
-static void volume_test_cb(lv_event_t *e) { LV_UNUSED(e); play_test_tone(); }
-
 static void build_volume_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Sound","Ton"));
-    volume_value_label=lv_label_create(s); lv_label_set_text_fmt(volume_value_label,"%d%%",current_volume); lv_obj_set_style_text_font(volume_value_label,&lv_font_montserrat_24,0); lv_obj_align(volume_value_label,LV_ALIGN_CENTER,0,-65);
-    volume_slider=lv_slider_create(s); lv_obj_set_width(volume_slider,300); lv_slider_set_range(volume_slider,0,100); lv_slider_set_value(volume_slider,current_volume,LV_ANIM_OFF); lv_obj_align(volume_slider,LV_ALIGN_CENTER,0,-5); lv_obj_add_event_cb(volume_slider,volume_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    volume_value_label=lv_label_create(s); lv_label_set_text_fmt(volume_value_label,"%d%%",current_volume); lv_obj_set_style_text_font(volume_value_label,&lv_font_montserrat_24,0); lv_obj_align(volume_value_label,LV_ALIGN_TOP_MID,0,78);
+    volume_slider=lv_slider_create(s); lv_obj_set_width(volume_slider,260); lv_slider_set_range(volume_slider,0,100); lv_slider_set_value(volume_slider,current_volume,LV_ANIM_OFF); lv_obj_align(volume_slider,LV_ALIGN_TOP_MID,0,126); lv_obj_add_event_cb(volume_slider,volume_slider_cb,LV_EVENT_VALUE_CHANGED,NULL); lv_obj_add_event_cb(volume_slider,volume_slider_release_cb,LV_EVENT_RELEASED,NULL);
 
-    lv_obj_t *m=lv_button_create(s); lv_obj_set_size(m,55,42); lv_obj_align(m,LV_ALIGN_CENTER,-180,-5); style_option_button(m,false); lv_obj_t *ml=lv_label_create(m); lv_label_set_text(ml,"-"); lv_obj_center(ml); lv_obj_add_event_cb(m,volume_minus_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *p=lv_button_create(s); lv_obj_set_size(p,55,42); lv_obj_align(p,LV_ALIGN_CENTER,180,-5); style_option_button(p,false); lv_obj_t *pl=lv_label_create(p); lv_label_set_text(pl,"+"); lv_obj_center(pl); lv_obj_add_event_cb(p,volume_plus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *m=lv_button_create(s); lv_obj_set_size(m,55,42); lv_obj_align(m,LV_ALIGN_TOP_LEFT,48,116); style_option_button(m,false); lv_obj_t *ml=lv_label_create(m); lv_label_set_text(ml,"-"); lv_obj_center(ml); lv_obj_add_event_cb(m,volume_minus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *p=lv_button_create(s); lv_obj_set_size(p,55,42); lv_obj_align(p,LV_ALIGN_TOP_RIGHT,-48,116); style_option_button(p,false); lv_obj_t *pl=lv_label_create(p); lv_label_set_text(pl,"+"); lv_obj_center(pl); lv_obj_add_event_cb(p,volume_plus_cb,LV_EVENT_CLICKED,NULL);
 
-    lv_obj_t *t=lv_button_create(s); lv_obj_set_size(t,170,50); lv_obj_align(t,LV_ALIGN_CENTER,0,70); style_option_button(t,false); lv_obj_t *tl=lv_label_create(t); lv_label_set_text(tl,tr("Test tone","Testton")); lv_obj_center(tl); lv_obj_add_event_cb(t,volume_test_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *mu=lv_button_create(s); lv_obj_set_size(mu,170,50); lv_obj_align(mu,LV_ALIGN_CENTER,0,130); style_option_button(mu,sound_muted); lv_obj_t *mul=lv_label_create(mu); lv_label_set_text(mul,sound_muted ? tr("Unmute","Ton an") : tr("Mute","Stumm")); lv_obj_center(mul); lv_obj_add_event_cb(mu,mute_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *mu=lv_button_create(s); lv_obj_set_size(mu,190,52); lv_obj_align(mu,LV_ALIGN_TOP_MID,0,210); style_option_button(mu,sound_muted); lv_obj_t *mul=lv_label_create(mu); lv_label_set_text(mul,sound_muted ? tr("Unmute","Ton an") : tr("Mute","Stumm")); lv_obj_center(mul); lv_obj_add_event_cb(mu,mute_cb,LV_EVENT_CLICKED,NULL);
     add_back_button(s,false);
 }
 
 static void build_language_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Language","Sprache"));
-    lv_obj_t *de=lv_button_create(s); lv_obj_set_size(de,170,70); style_option_button(de,language); lv_obj_align(de,LV_ALIGN_CENTER,-95,0); lv_obj_t *dl=lv_label_create(de); lv_label_set_text(dl,"Deutsch"); lv_obj_center(dl); lv_obj_add_event_cb(de,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
-    lv_obj_t *en=lv_button_create(s); lv_obj_set_size(en,170,70); style_option_button(en,!language); lv_obj_align(en,LV_ALIGN_CENTER,95,0); lv_obj_t *el=lv_label_create(en); lv_label_set_text(el,"English"); lv_obj_center(el); lv_obj_add_event_cb(en,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
+    lv_obj_t *de=lv_button_create(s); lv_obj_set_size(de,170,70); style_option_button(de,language); lv_obj_align(de,LV_ALIGN_TOP_MID,-95,145); lv_obj_t *dl=lv_label_create(de); lv_label_set_text(dl,"Deutsch"); lv_obj_center(dl); lv_obj_add_event_cb(de,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
+    lv_obj_t *en=lv_button_create(s); lv_obj_set_size(en,170,70); style_option_button(en,!language); lv_obj_align(en,LV_ALIGN_TOP_MID,95,145); lv_obj_t *el=lv_label_create(en); lv_label_set_text(el,"English"); lv_obj_center(el); lv_obj_add_event_cb(en,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
     add_back_button(s,false);
 }
 
@@ -416,19 +414,19 @@ static void build_clock_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Clock","Uhr"));
     time_t now; time(&now); struct tm tm_now; localtime_r(&now,&tm_now); char buf[8]; strftime(buf,sizeof(buf),"%H:%M",&tm_now);
-    lv_obj_t *clock=lv_label_create(s); lv_label_set_text(clock,buf); lv_obj_set_style_text_font(clock,&lv_font_montserrat_24,0); lv_obj_align(clock,LV_ALIGN_TOP_MID,0,75);
-    lv_obj_t *mh=lv_button_create(s); lv_obj_set_size(mh,170,55); lv_obj_align(mh,LV_ALIGN_TOP_MID,-95,145); style_option_button(mh,false); lv_obj_t *mhl=lv_label_create(mh); lv_label_set_text(mhl,tr("- 1 h","- 1 Std")); lv_obj_center(mhl); lv_obj_add_event_cb(mh,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)-3600);
-    lv_obj_t *ph=lv_button_create(s); lv_obj_set_size(ph,170,55); lv_obj_align(ph,LV_ALIGN_TOP_MID,95,145); style_option_button(ph,false); lv_obj_t *phl=lv_label_create(ph); lv_label_set_text(phl,tr("+ 1 h","+ 1 Std")); lv_obj_center(phl); lv_obj_add_event_cb(ph,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)3600);
-    lv_obj_t *mm=lv_button_create(s); lv_obj_set_size(mm,170,55); lv_obj_align(mm,LV_ALIGN_TOP_MID,-95,215); style_option_button(mm,false); lv_obj_t *mml=lv_label_create(mm); lv_label_set_text(mml,tr("- 1 min","- 1 Min")); lv_obj_center(mml); lv_obj_add_event_cb(mm,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)-60);
-    lv_obj_t *pm=lv_button_create(s); lv_obj_set_size(pm,170,55); lv_obj_align(pm,LV_ALIGN_TOP_MID,95,215); style_option_button(pm,false); lv_obj_t *pml=lv_label_create(pm); lv_label_set_text(pml,tr("+ 1 min","+ 1 Min")); lv_obj_center(pml); lv_obj_add_event_cb(pm,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)60);
+    lv_obj_t *clock=lv_label_create(s); lv_label_set_text(clock,buf); lv_obj_set_style_text_font(clock,&lv_font_montserrat_24,0); lv_obj_align(clock,LV_ALIGN_TOP_MID,0,78);
+    lv_obj_t *mh=lv_button_create(s); lv_obj_set_size(mh,170,55); lv_obj_align(mh,LV_ALIGN_TOP_MID,-95,135); style_option_button(mh,false); lv_obj_t *mhl=lv_label_create(mh); lv_label_set_text(mhl,tr("- 1 h","- 1 Std")); lv_obj_center(mhl); lv_obj_add_event_cb(mh,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)-3600);
+    lv_obj_t *ph=lv_button_create(s); lv_obj_set_size(ph,170,55); lv_obj_align(ph,LV_ALIGN_TOP_MID,95,135); style_option_button(ph,false); lv_obj_t *phl=lv_label_create(ph); lv_label_set_text(phl,tr("+ 1 h","+ 1 Std")); lv_obj_center(phl); lv_obj_add_event_cb(ph,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)3600);
+    lv_obj_t *mm=lv_button_create(s); lv_obj_set_size(mm,170,55); lv_obj_align(mm,LV_ALIGN_TOP_MID,-95,205); style_option_button(mm,false); lv_obj_t *mml=lv_label_create(mm); lv_label_set_text(mml,tr("- 1 min","- 1 Min")); lv_obj_center(mml); lv_obj_add_event_cb(mm,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)-60);
+    lv_obj_t *pm=lv_button_create(s); lv_obj_set_size(pm,170,55); lv_obj_align(pm,LV_ALIGN_TOP_MID,95,205); style_option_button(pm,false); lv_obj_t *pml=lv_label_create(pm); lv_label_set_text(pml,tr("+ 1 min","+ 1 Min")); lv_obj_center(pml); lv_obj_add_event_cb(pm,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)60);
     add_back_button(s,false);
 }
 
 static void build_theme_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Theme","Darstellung"));
-    lv_obj_t *dark=lv_button_create(s); lv_obj_set_size(dark,170,70); style_option_button(dark,theme==0); lv_obj_align(dark,LV_ALIGN_CENTER,-95,0); lv_obj_t *dt=lv_label_create(dark); lv_label_set_text(dt,"Dark"); lv_obj_center(dt); lv_obj_add_event_cb(dark,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
-    lv_obj_t *light=lv_button_create(s); lv_obj_set_size(light,170,70); style_option_button(light,theme==1); lv_obj_align(light,LV_ALIGN_CENTER,95,0); lv_obj_t *lt=lv_label_create(light); lv_label_set_text(lt,"Light"); lv_obj_center(lt); lv_obj_add_event_cb(light,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
+    lv_obj_t *dark=lv_button_create(s); lv_obj_set_size(dark,170,70); style_option_button(dark,theme==0); lv_obj_align(dark,LV_ALIGN_TOP_MID,-95,145); lv_obj_t *dt=lv_label_create(dark); lv_label_set_text(dt,"Dark"); lv_obj_center(dt); lv_obj_add_event_cb(dark,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
+    lv_obj_t *light=lv_button_create(s); lv_obj_set_size(light,170,70); style_option_button(light,theme==1); lv_obj_align(light,LV_ALIGN_TOP_MID,95,145); lv_obj_t *lt=lv_label_create(light); lv_label_set_text(lt,"Light"); lv_obj_center(lt); lv_obj_add_event_cb(light,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
     add_back_button(s,false);
 }
 
