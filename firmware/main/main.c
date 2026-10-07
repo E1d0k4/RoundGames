@@ -43,6 +43,8 @@ static lv_timer_t *screensaver_timer = NULL;
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
 static esp_codec_dev_handle_t speaker_codec = NULL;
+static TaskHandle_t tone_task_handle = NULL;
+static volatile int tone_request_volume = -1;
 
 static void screensaver_wake_cb(lv_event_t *e);
 static void build_launcher(void);
@@ -106,7 +108,6 @@ static void load_settings(void)
     if (dim_brightness > 50) dim_brightness = 50;
     if (dim_timeout < 10) dim_timeout = 10;
     if (dim_timeout > 600) dim_timeout = 600;
-    favorite_games |= 1u;
 }
 
 static void apply_theme(lv_obj_t *screen)
@@ -134,7 +135,6 @@ static void activity_reset(void)
 }
 
 static void settings_gesture_cb(lv_event_t *e);
-static void build_games_menu(void);
 
 static void clear_screen(void)
 {
@@ -170,6 +170,12 @@ static void brightness_slider_cb(lv_event_t *e) { set_brightness(lv_slider_get_v
 static void brightness_minus_cb(lv_event_t *e) { LV_UNUSED(e); set_brightness(current_brightness - 10); }
 static void brightness_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_brightness(current_brightness + 10); }
 
+static int volume_to_codec(int value)
+{
+    if (value <= 0) return 0;
+    return 15 + ((value - 1) * 85) / 99;
+}
+
 static void set_volume(int value)
 {
     if (value < 0) value = 0;
@@ -177,15 +183,16 @@ static void set_volume(int value)
     current_volume = value;
     if (volume_slider) lv_slider_set_value(volume_slider, value, LV_ANIM_OFF);
     if (volume_value_label) lv_label_set_text_fmt(volume_value_label, "%d%%", value);
-    if (speaker_codec) esp_codec_dev_set_out_vol(speaker_codec, sound_muted ? 0 : current_volume);
+    if (speaker_codec) esp_codec_dev_set_out_vol(speaker_codec, sound_muted ? 0 : volume_to_codec(current_volume));
     save_settings(); activity_reset();
 }
+
 static void volume_slider_cb(lv_event_t *e) { set_volume(lv_slider_get_value(lv_event_get_target(e))); }
 static void volume_slider_release_cb(lv_event_t *e) { LV_UNUSED(e); play_test_tone(); }
-static void volume_minus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume - 10); play_test_tone(); }
-static void volume_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume + 10); play_test_tone(); }
+static void volume_minus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume - 5); play_test_tone(); }
+static void volume_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_volume(current_volume + 5); play_test_tone(); }
 
-static void mute_cb(lv_event_t *e) { LV_UNUSED(e); sound_muted = !sound_muted; if (speaker_codec) esp_codec_dev_set_out_vol(speaker_codec, sound_muted ? 0 : current_volume); save_settings(); build_volume_page(); }
+static void mute_cb(lv_event_t *e) { LV_UNUSED(e); sound_muted = !sound_muted; if (speaker_codec) esp_codec_dev_set_out_vol(speaker_codec, sound_muted ? 0 : volume_to_codec(current_volume)); save_settings(); build_volume_page(); }
 
 static void set_dim_brightness(int value)
 {
@@ -222,12 +229,10 @@ static void settings_gesture_cb(lv_event_t *e)
     if (launcher_active) {
         if (dir == LV_DIR_BOTTOM) {
             build_settings_menu();
-        } else if (dir == LV_DIR_TOP) {
-            build_games_menu();
-        } else if (dir == LV_DIR_LEFT) {
-            launcher_page++;
-            build_launcher();
         } else if (dir == LV_DIR_RIGHT) {
+            if (launcher_page < LAUNCHER_PAGE_COUNT - 1) launcher_page++;
+            build_launcher();
+        } else if (dir == LV_DIR_LEFT) {
             if (launcher_page > 0) launcher_page--;
             build_launcher();
         }
@@ -327,18 +332,18 @@ static void build_brightness_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Brightness","Helligkeit"));
 
-    lv_obj_t *n=lv_label_create(s); lv_label_set_text(n,"Normal"); lv_obj_align(n,LV_ALIGN_TOP_LEFT,42,70);
-    brightness_value_label=lv_label_create(s); lv_label_set_text_fmt(brightness_value_label,"%d%%",current_brightness); lv_obj_align(brightness_value_label,LV_ALIGN_TOP_RIGHT,-42,70);
-    brightness_slider=lv_slider_create(s); lv_obj_set_width(brightness_slider,260); lv_slider_set_range(brightness_slider,10,100); lv_slider_set_value(brightness_slider,current_brightness,LV_ANIM_OFF); lv_obj_align(brightness_slider,LV_ALIGN_TOP_MID,0,112); lv_obj_add_event_cb(brightness_slider,brightness_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    lv_obj_t *n=lv_label_create(s); lv_label_set_text(n,"Normal"); lv_obj_align(n,LV_ALIGN_TOP_LEFT,58,70);
+    brightness_value_label=lv_label_create(s); lv_label_set_text_fmt(brightness_value_label,"%d%%",current_brightness); lv_obj_align(brightness_value_label,LV_ALIGN_TOP_RIGHT,-58,70);
+    brightness_slider=lv_slider_create(s); lv_obj_set_width(brightness_slider,220); lv_slider_set_range(brightness_slider,10,100); lv_slider_set_value(brightness_slider,current_brightness,LV_ANIM_OFF); lv_obj_align(brightness_slider,LV_ALIGN_TOP_MID,0,112); lv_obj_add_event_cb(brightness_slider,brightness_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
 
-    lv_obj_t *bm=lv_button_create(s); lv_obj_set_size(bm,55,42); lv_obj_align(bm,LV_ALIGN_TOP_LEFT,28,102); style_option_button(bm,false); lv_obj_t *bml=lv_label_create(bm); lv_label_set_text(bml,"-"); lv_obj_center(bml); lv_obj_add_event_cb(bm,brightness_minus_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *bp=lv_button_create(s); lv_obj_set_size(bp,55,42); lv_obj_align(bp,LV_ALIGN_TOP_RIGHT,-28,102); style_option_button(bp,false); lv_obj_t *bpl=lv_label_create(bp); lv_label_set_text(bpl,"+"); lv_obj_center(bpl); lv_obj_add_event_cb(bp,brightness_plus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *bm=lv_button_create(s); lv_obj_set_size(bm,48,42); lv_obj_align(bm,LV_ALIGN_TOP_LEFT,42,102); style_option_button(bm,false); lv_obj_t *bml=lv_label_create(bm); lv_label_set_text(bml,"-"); lv_obj_center(bml); lv_obj_add_event_cb(bm,brightness_minus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *bp=lv_button_create(s); lv_obj_set_size(bp,48,42); lv_obj_align(bp,LV_ALIGN_TOP_RIGHT,-42,102); style_option_button(bp,false); lv_obj_t *bpl=lv_label_create(bp); lv_label_set_text(bpl,"+"); lv_obj_center(bpl); lv_obj_add_event_cb(bp,brightness_plus_cb,LV_EVENT_CLICKED,NULL);
 
-    lv_obj_t *d=lv_label_create(s); lv_label_set_text(d,tr("Dim","Dimmen")); lv_obj_align(d,LV_ALIGN_TOP_LEFT,42,172);
-    dim_value_label=lv_label_create(s); lv_label_set_text_fmt(dim_value_label,"%d%%",dim_brightness); lv_obj_align(dim_value_label,LV_ALIGN_TOP_RIGHT,-42,172);
-    dim_slider=lv_slider_create(s); lv_obj_set_width(dim_slider,260); lv_slider_set_range(dim_slider,5,50); lv_slider_set_value(dim_slider,dim_brightness,LV_ANIM_OFF); lv_obj_align(dim_slider,LV_ALIGN_TOP_MID,0,194); lv_obj_add_event_cb(dim_slider,dim_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
-    lv_obj_t *dm=lv_button_create(s); lv_obj_set_size(dm,55,42); lv_obj_align(dm,LV_ALIGN_TOP_LEFT,28,184); style_option_button(dm,false); lv_obj_t *dml=lv_label_create(dm); lv_label_set_text(dml,"-"); lv_obj_center(dml); lv_obj_add_event_cb(dm,dim_minus_cb,LV_EVENT_CLICKED,NULL);
-    lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,55,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-28,184); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *d=lv_label_create(s); lv_label_set_text(d,tr("Dim","Dimmen")); lv_obj_align(d,LV_ALIGN_TOP_LEFT,58,172);
+    dim_value_label=lv_label_create(s); lv_label_set_text_fmt(dim_value_label,"%d%%",dim_brightness); lv_obj_align(dim_value_label,LV_ALIGN_TOP_RIGHT,-58,172);
+    dim_slider=lv_slider_create(s); lv_obj_set_width(dim_slider,220); lv_slider_set_range(dim_slider,5,50); lv_slider_set_value(dim_slider,dim_brightness,LV_ANIM_OFF); lv_obj_align(dim_slider,LV_ALIGN_TOP_MID,0,194); lv_obj_add_event_cb(dim_slider,dim_slider_cb,LV_EVENT_VALUE_CHANGED,NULL);
+    lv_obj_t *dm=lv_button_create(s); lv_obj_set_size(dm,48,42); lv_obj_align(dm,LV_ALIGN_TOP_LEFT,42,184); style_option_button(dm,false); lv_obj_t *dml=lv_label_create(dm); lv_label_set_text(dml,"-"); lv_obj_center(dml); lv_obj_add_event_cb(dm,dim_minus_cb,LV_EVENT_CLICKED,NULL);
+    lv_obj_t *dp=lv_button_create(s); lv_obj_set_size(dp,48,42); lv_obj_align(dp,LV_ALIGN_TOP_RIGHT,-42,184); style_option_button(dp,false); lv_obj_t *dpl=lv_label_create(dp); lv_label_set_text(dpl,"+"); lv_obj_center(dpl); lv_obj_add_event_cb(dp,dim_plus_cb,LV_EVENT_CLICKED,NULL);
 
     lv_obj_t *ss=lv_button_create(s); lv_obj_set_size(ss,175,52); lv_obj_align(ss,LV_ALIGN_TOP_LEFT,48,260); style_option_button(ss,screensaver_enabled);
     lv_obj_t *ssl=lv_label_create(ss); lv_label_set_text_fmt(ssl,"%s: %s",tr("Screen","Bildschirm"),screensaver_enabled ? "ON":"OFF"); lv_obj_center(ssl); lv_obj_add_event_cb(ss,screensaver_toggle_cb,LV_EVENT_CLICKED,NULL);
@@ -348,9 +353,9 @@ static void build_brightness_page(void)
     add_back_button(s,false);
 }
 
-static void play_test_tone(void)
+static void play_test_tone_blocking(int requested_volume)
 {
-    if (sound_muted || current_volume <= 0) return;
+    if (sound_muted || requested_volume <= 0) return;
 
     if (!speaker_codec) {
         speaker_codec = bsp_audio_codec_speaker_init();
@@ -360,13 +365,13 @@ static void play_test_tone(void)
         }
     }
 
-    esp_codec_dev_set_out_vol(speaker_codec, current_volume);
+    esp_codec_dev_set_out_vol(speaker_codec, volume_to_codec(requested_volume));
 
     static int16_t tone[22050];
     static bool ready = false;
     if (!ready) {
         for (int i = 0; i < 22050; i++) {
-            int16_t sample = ((i % 25) < 12) ? 9000 : -9000;
+            int16_t sample = ((i % 25) < 12) ? 22000 : -22000;
             tone[i] = sample;
         }
         ready = true;
@@ -390,6 +395,25 @@ static void play_test_tone(void)
     esp_codec_dev_close(speaker_codec);
 }
 
+static void tone_task(void *arg)
+{
+    LV_UNUSED(arg);
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        int requested_volume = tone_request_volume;
+        tone_request_volume = -1;
+        if (requested_volume > 0) {
+            play_test_tone_blocking(requested_volume);
+        }
+    }
+}
+
+static void play_test_tone(void)
+{
+    if (sound_muted || current_volume <= 0 || !tone_task_handle) return;
+    tone_request_volume = current_volume;
+    xTaskNotifyGive(tone_task_handle);
+}
 static void build_volume_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Sound","Ton"));
@@ -480,92 +504,35 @@ typedef struct {
 } game_entry_t;
 
 static const game_entry_t games[] = {
-    { "Tic-Tac-Toe", "Tic-Tac-Toe" }
+    { "Tic-Tac-Toe", "Tic-Tac-Toe" },
+    { "Test-App-2", "App 2" },
+    { "Test-App-3", "App 3" },
+    { "Test-App-4", "App 4" },
+    { "Test-App-5", "App 5" },
+    { "Test-App-6", "App 6" },
+    { "Test-App-7", "App 7" },
+    { "Test-App-8", "App 8" }
 };
 
 #define GAME_COUNT ((int)(sizeof(games) / sizeof(games[0])))
 #define GAMES_PER_PAGE 4
-
-static int favorite_game_count(void)
-{
-    int count = 0;
-    for (int i = 0; i < GAME_COUNT; i++) {
-        if (favorite_games & (1u << i)) count++;
-    }
-    return count;
-}
-
-static int favorite_game_at(int favorite_index)
-{
-    int seen = 0;
-    for (int i = 0; i < GAME_COUNT; i++) {
-        if (favorite_games & (1u << i)) {
-            if (seen == favorite_index) return i;
-            seen++;
-        }
-    }
-    return -1;
-}
+#define LAUNCHER_PAGE_COUNT ((GAME_COUNT + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE)
 
 static void launcher_button_cb(lv_event_t *e)
 {
     int game_index = (int)(intptr_t)lv_event_get_user_data(e);
     activity_reset();
-    if (game_index >= 0 && game_index < GAME_COUNT &&
-        !strcmp(games[game_index].id, "Tic-Tac-Toe")) {
+    if (game_index == 0) {
         show_status("Tic-Tac-Toe",
                     tr("Game module will be added next.",
                        "Spielmodul kommt als Nächstes."));
+    } else {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "%s\n%s",
+                 games[game_index].name,
+                 tr("Test placeholder", "Test-Platzhalter"));
+        show_status(games[game_index].name, msg);
     }
-}
-
-static void favorite_toggle_cb(lv_event_t *e)
-{
-    int game_index = (int)(intptr_t)lv_event_get_user_data(e);
-    if (game_index < 0 || game_index >= GAME_COUNT) return;
-
-    favorite_games ^= (1u << game_index);
-
-    if (favorite_games == 0) {
-        favorite_games |= (1u << game_index);
-    }
-
-    launcher_page = 0;
-    save_settings();
-    build_games_menu();
-}
-
-static void build_games_menu(void)
-{
-    clear_screen();
-    lv_obj_t *screen = lv_scr_act();
-    add_title(screen, tr("Games", "Spiele"));
-
-    for (int i = 0; i < GAME_COUNT; i++) {
-        int row = i / 2;
-        int col = i % 2;
-        lv_obj_t *button = lv_button_create(screen);
-        lv_obj_set_size(button, 185, 66);
-        lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205, 75 + row * 82);
-        style_option_button(button, (favorite_games & (1u << i)) != 0);
-
-        lv_obj_t *label = lv_label_create(button);
-        lv_label_set_text(label, games[i].name);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_18, 0);
-        lv_obj_align(label, LV_ALIGN_CENTER, 8, 0);
-
-        lv_obj_add_event_cb(button, favorite_toggle_cb, LV_EVENT_CLICKED,
-                            (void *)(intptr_t)i);
-    }
-
-    lv_obj_t *hint = lv_label_create(screen);
-    lv_label_set_text(hint,
-        tr("Tap a game to favorite it",
-           "Tippe auf ein Spiel, um es zu favorisieren"));
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_16, 0);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -55);
-
-    add_back_button(screen, true);
 }
 
 static void build_launcher(void)
@@ -574,17 +541,10 @@ static void build_launcher(void)
     launcher_active = true;
 
     lv_obj_t *screen = lv_scr_act();
-
-    int favorite_count = favorite_game_count();
-    int page_count = (favorite_count + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE;
-    if (page_count < 1) page_count = 1;
-    if (launcher_page >= page_count) launcher_page = page_count - 1;
-
     int start = launcher_page * GAMES_PER_PAGE;
 
     for (int slot = 0; slot < GAMES_PER_PAGE; slot++) {
-        int favorite_index = start + slot;
-        int game_index = favorite_game_at(favorite_index);
+        int game_index = start + slot;
         int col = slot % 2;
         int row = slot / 2;
 
@@ -592,40 +552,29 @@ static void build_launcher(void)
         lv_obj_set_size(button, 185, 120);
         lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205,
                      82 + row * 145);
+        style_option_button(button, false);
 
-        if (game_index >= 0) {
-            style_option_button(button, false);
-            lv_obj_t *label = lv_label_create(button);
-            lv_label_set_text(label, games[game_index].name);
-            lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-            lv_obj_center(label);
-            lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
-                                (void *)(intptr_t)game_index);
-        } else {
-            style_option_button(button, false);
-            lv_obj_add_state(button, LV_STATE_DISABLED);
-        }
+        lv_obj_t *label = lv_label_create(button);
+        lv_label_set_text(label, games[game_index].name);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+        lv_obj_center(label);
+        lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
+                            (void *)(intptr_t)game_index);
     }
 
-    if (page_count > 1) {
-        for (int i = 0; i < page_count; i++) {
-            lv_obj_t *dot = lv_obj_create(screen);
-            lv_obj_set_size(dot, i == launcher_page ? 10 : 7, i == launcher_page ? 10 : 7);
-            lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_color(dot, i == launcher_page ? lv_color_hex(0x20A050) : lv_color_hex(0x60656D), 0);
-            lv_obj_set_style_border_width(dot, 0, 0);
-            lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, (i - (page_count - 1) / 2) * 18, -18);
-        }
-    } else {
+    for (int i = 0; i < LAUNCHER_PAGE_COUNT; i++) {
         lv_obj_t *dot = lv_obj_create(screen);
-        lv_obj_set_size(dot, 10, 10);
+        lv_obj_set_size(dot, i == launcher_page ? 10 : 7,
+                        i == launcher_page ? 10 : 7);
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(dot, lv_color_hex(0x20A050), 0);
+        lv_obj_set_style_bg_color(dot,
+                                  i == launcher_page ? lv_color_hex(0x20A050)
+                                                     : lv_color_hex(0x60656D), 0);
         lv_obj_set_style_border_width(dot, 0, 0);
-        lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, 0, -18);
+        lv_obj_align(dot, LV_ALIGN_BOTTOM_MID,
+                     (i - (LAUNCHER_PAGE_COUNT - 1) / 2) * 18, -18);
     }
 }
-
 static void show_status(const char *title,const char *message)
 {
     clear_screen(); lv_obj_t *screen=lv_scr_act(); add_title(screen,title);
@@ -643,6 +592,7 @@ void app_main(void)
     bsp_display_brightness_set(current_brightness);
     bsp_display_lock(-1);
     build_launcher();
+    xTaskCreate(tone_task, "tone_task", 4096, NULL, 4, &tone_task_handle);
     screensaver_timer=lv_timer_create(screensaver_tick,1000,NULL);
     bsp_display_unlock();
     ESP_LOGI(TAG,"RoundGames Phase 3 UI ready");
