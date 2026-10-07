@@ -270,8 +270,9 @@ static void clock_adjust_cb(lv_event_t *e)
 static void settings_gesture_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
-    lv_indev_wait_release(lv_indev_active());
+    lv_indev_t *indev = lv_indev_active();
+    if (!indev) return;
+    lv_dir_t dir = lv_indev_get_gesture_dir(indev);
 
     if (launcher_active) {
         if (dir == LV_DIR_BOTTOM) {
@@ -639,6 +640,7 @@ static void screensaver_tick(lv_timer_t *timer)
     lv_obj_set_style_bg_opa(screen_saver, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(screen_saver, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
 
     for (int i = 0; i < 6; i++) theme_effects[i] = NULL;
@@ -661,7 +663,8 @@ static void screensaver_tick(lv_timer_t *timer)
                                       lv_color_hex(chosen[i]), 0);
             lv_obj_set_style_bg_opa(theme_effects[i], LV_OPA_COVER, 0);
             lv_obj_set_style_border_width(theme_effects[i], 0, 0);
-            lv_obj_clear_flag(theme_effects[i], LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_clear_flag(theme_effects[i],
+                               LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
             if (theme == 2) {
                 lv_obj_set_size(theme_effects[i], 190, 190);
                 lv_obj_set_pos(theme_effects[i],
@@ -681,6 +684,7 @@ static void screensaver_tick(lv_timer_t *timer)
     struct tm tm_now; localtime_r(&now, &tm_now);
     char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
     lv_label_set_text(screensaver_clock, buf);
+    lv_obj_clear_flag(screensaver_clock, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_text_color(screensaver_clock, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_font(screensaver_clock, &lv_font_montserrat_48, 0);
     lv_obj_set_style_transform_scale_x(screensaver_clock, 512, 0);
