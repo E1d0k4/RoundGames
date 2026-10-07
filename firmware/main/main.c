@@ -14,6 +14,7 @@
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
 #include "audio.h"
+#include "language.h"
 
 static const char *TAG = "roundgames";
 
@@ -21,7 +22,6 @@ static int current_brightness = 50;
 static int current_volume = 70;
 static int dim_brightness = 10;
 static int dim_timeout = 30;
-static int language = 0;
 static int theme = 0;
 static bool sound_muted = false;
 static bool screensaver_enabled = true;
@@ -57,7 +57,7 @@ static void theme_cb(lv_event_t *e);
 static void build_info_page(void);
 static void show_status(const char *title, const char *message);
 
-static const char *tr(const char *en, const char *de) { return language ? de : en; }
+static const char *tr(const char *en, const char *de) { return language_tr(en, de); }
 
 static void save_settings(void)
 {
@@ -67,7 +67,7 @@ static void save_settings(void)
     nvs_set_i32(nvs, "volume", current_volume);
     nvs_set_i32(nvs, "dim_bright", dim_brightness);
     nvs_set_i32(nvs, "dim_time", dim_timeout);
-    nvs_set_i32(nvs, "language", language);
+    nvs_set_i32(nvs, "language", language_get());
     nvs_set_i32(nvs, "theme", theme);
     nvs_set_i32(nvs, "muted", sound_muted);
     nvs_set_i32(nvs, "screensaver", screensaver_enabled);
@@ -87,7 +87,7 @@ static void load_settings(void)
     if (nvs_get_i32(nvs, "volume", &value) == ESP_OK) current_volume = value;
     if (nvs_get_i32(nvs, "dim_bright", &value) == ESP_OK) dim_brightness = value;
     if (nvs_get_i32(nvs, "dim_time", &value) == ESP_OK) dim_timeout = value;
-    if (nvs_get_i32(nvs, "language", &value) == ESP_OK) language = value;
+    if (nvs_get_i32(nvs, "language", &value) == ESP_OK) language_set(value);
     if (nvs_get_i32(nvs, "theme", &value) == ESP_OK) theme = value;
     if (nvs_get_i32(nvs, "muted", &value) == ESP_OK) sound_muted = value;
     if (nvs_get_i32(nvs, "screensaver", &value) == ESP_OK) screensaver_enabled = value;
@@ -242,7 +242,7 @@ static void dim_minus_cb(lv_event_t *e) { LV_UNUSED(e); set_dim_brightness(dim_b
 static void dim_plus_cb(lv_event_t *e) { LV_UNUSED(e); set_dim_brightness(dim_brightness + 5); }
 static void dim_time_cb(lv_event_t *e) { LV_UNUSED(e); dim_timeout += 10; if (dim_timeout > 120) dim_timeout = 10; save_settings(); build_brightness_page(); }
 
-static void language_cb(lv_event_t *e) { language = (int)(intptr_t)lv_event_get_user_data(e); save_settings(); build_language_page(); }
+static void language_cb(lv_event_t *e) { language_set((int)(intptr_t)lv_event_get_user_data(e)); save_settings(); build_language_page(); }
 static void theme_cb(lv_event_t *e) { theme = (int)(intptr_t)lv_event_get_user_data(e); save_settings(); build_theme_page(); }
 static void screensaver_toggle_cb(lv_event_t *e) { LV_UNUSED(e); screensaver_enabled = !screensaver_enabled; save_settings(); build_brightness_page(); }
 
@@ -404,8 +404,8 @@ static void build_volume_page(void)
 static void build_language_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Language","Sprache"));
-    lv_obj_t *de=lv_button_create(s); lv_obj_set_size(de,170,70); style_option_button(de,language); lv_obj_align(de,LV_ALIGN_TOP_MID,-95,198); lv_obj_t *dl=lv_label_create(de); lv_label_set_text(dl,"Deutsch"); lv_obj_center(dl); lv_obj_add_event_cb(de,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
-    lv_obj_t *en=lv_button_create(s); lv_obj_set_size(en,170,70); style_option_button(en,!language); lv_obj_align(en,LV_ALIGN_TOP_MID,95,198); lv_obj_t *el=lv_label_create(en); lv_label_set_text(el,"English"); lv_obj_center(el); lv_obj_add_event_cb(en,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
+    lv_obj_t *de=lv_button_create(s); lv_obj_set_size(de,170,70); style_option_button(de,language_get()); lv_obj_align(de,LV_ALIGN_TOP_MID,-95,198); lv_obj_t *dl=lv_label_create(de); lv_label_set_text(dl,"Deutsch"); lv_obj_center(dl); lv_obj_add_event_cb(de,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)1);
+    lv_obj_t *en=lv_button_create(s); lv_obj_set_size(en,170,70); style_option_button(en,!language_get()); lv_obj_align(en,LV_ALIGN_TOP_MID,95,198); lv_obj_t *el=lv_label_create(en); lv_label_set_text(el,"English"); lv_obj_center(el); lv_obj_add_event_cb(en,language_cb,LV_EVENT_CLICKED,(void*)(intptr_t)0);
     add_back_button(s,false);
 }
 
