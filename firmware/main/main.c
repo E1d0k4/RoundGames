@@ -9,6 +9,7 @@
 #include "lvgl.h"
 
 #include "display.h"
+#include "input.h"
 #include "audio.h"
 #include "language.h"
 #include "settings.h"
@@ -25,7 +26,6 @@ static int dim_timeout = 30;
 
 static bool sound_muted = false;
 static bool launcher_active = true;
-static int launcher_page = 0;
 static uint32_t favorite_games = 1u;
 
 static lv_obj_t *brightness_slider = NULL;
@@ -37,7 +37,6 @@ static lv_obj_t *dim_value_label = NULL;
 static lv_timer_t *theme_animation_timer = NULL;
 
 
-static bool gesture_registered = false;
 
 static void build_launcher(void);
 static void build_settings_menu(void);
@@ -117,11 +116,11 @@ static void activity_reset(void)
 #define GAME_COUNT 8
 #define LAUNCHER_PAGE_COUNT ((GAME_COUNT + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE)
 
-static void settings_gesture_cb(lv_event_t *e);
 
 static void clear_screen(void)
 {
     launcher_active = false;
+    input_set_launcher_state(false, input_get_launcher_page(), LAUNCHER_PAGE_COUNT);
     activity_reset();
     lv_obj_clean(lv_scr_act());
     brightness_slider = NULL;
@@ -131,10 +130,7 @@ static void clear_screen(void)
     dim_slider = NULL;
     dim_value_label = NULL;
     theme_apply(lv_scr_act());
-    if (!gesture_registered) {
-        lv_obj_add_event_cb(lv_scr_act(), settings_gesture_cb, LV_EVENT_GESTURE, NULL);
-        gesture_registered = true;
-    }
+    input_register_screen(lv_scr_act());
 }
 
 static void back_button_cb(lv_event_t *e) { LV_UNUSED(e); activity_reset(); build_settings_menu(); }
@@ -213,26 +209,23 @@ static void clock_adjust_cb(lv_event_t *e)
     build_clock_page();
 }
 
-static void settings_gesture_cb(lv_event_t *e)
+static void gesture_bottom_cb(void)
 {
-    LV_UNUSED(e);
-    lv_indev_t *indev = lv_indev_active();
-    if (!indev) return;
-    lv_dir_t dir = lv_indev_get_gesture_dir(indev);
-
     if (launcher_active) {
-        if (dir == LV_DIR_BOTTOM) {
-            build_settings_menu();
-        } else if (dir == LV_DIR_LEFT) {
-            if (launcher_page < LAUNCHER_PAGE_COUNT - 1) launcher_page++;
-            build_launcher();
-        } else if (dir == LV_DIR_RIGHT) {
-            if (launcher_page > 0) launcher_page--;
-            build_launcher();
-        }
-    } else if (dir == LV_DIR_BOTTOM) {
+        build_settings_menu();
+    } else {
         build_settings_menu();
     }
+}
+
+static void gesture_left_cb(void)
+{
+    build_launcher();
+}
+
+static void gesture_right_cb(void)
+{
+    build_launcher();
 }
 
 static void settings_menu_cb(lv_event_t *e)
@@ -469,9 +462,10 @@ static void build_launcher(void)
 {
     clear_screen();
     launcher_active = true;
+    input_set_launcher_state(true, input_get_launcher_page(), LAUNCHER_PAGE_COUNT);
 
     lv_obj_t *screen = lv_scr_act();
-    int start = launcher_page * GAMES_PER_PAGE;
+    int start = input_get_launcher_page() * GAMES_PER_PAGE;
 
     for (int slot = 0; slot < GAMES_PER_PAGE; slot++) {
         int game_index = start + slot;
@@ -496,11 +490,11 @@ static void build_launcher(void)
 
     for (int i = 0; i < LAUNCHER_PAGE_COUNT; i++) {
         lv_obj_t *dot = lv_obj_create(screen);
-        lv_obj_set_size(dot, i == launcher_page ? 10 : 7,
+        lv_obj_set_size(dot, i == input_get_launcher_page() ? 10 : 7,
                         i == launcher_page ? 10 : 7);
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_color(dot,
-                                  i == launcher_page ? lv_color_hex(0x20A050)
+                                  i == input_get_launcher_page() ? lv_color_hex(0x20A050)
                                                      : lv_color_hex(0x60656D), 0);
         lv_obj_set_style_border_width(dot, 0, 0);
         lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
@@ -522,6 +516,8 @@ void app_main(void)
     esp_err_t nvs_ret=nvs_flash_init();
     if(nvs_ret==ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret==ESP_ERR_NVS_NEW_VERSION_FOUND){nvs_flash_erase();nvs_flash_init();}
     screensaver_init();
+    input_init();
+    input_set_actions(gesture_bottom_cb, gesture_left_cb, gesture_right_cb);
     load_settings();
     display_init();
     display_set_brightness(current_brightness);
