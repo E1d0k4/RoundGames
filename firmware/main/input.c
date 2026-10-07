@@ -9,7 +9,14 @@ static input_action_cb_t left_action = NULL;
 static input_action_cb_t right_action = NULL;
 static input_action_cb_t up_action = NULL;
 static bool game_active = false;
+static input_action_cb_t activity_callback = NULL;
 static bool gesture_registered = false;
+
+static void input_activity_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    if (activity_callback) activity_callback();
+}
 
 static void input_gesture_cb(lv_event_t *e)
 {
@@ -51,6 +58,7 @@ void input_init(void)
     right_action = NULL;
     up_action = NULL;
     game_active = false;
+    activity_callback = NULL;
     gesture_registered = false;
 }
 
@@ -58,6 +66,7 @@ void input_register_screen(lv_obj_t *screen)
 {
     if (!screen || gesture_registered) return;
     lv_obj_add_event_cb(screen, input_gesture_cb, LV_EVENT_GESTURE, NULL);
+    lv_obj_add_event_cb(screen, input_activity_cb, LV_EVENT_PRESSED, NULL);
     gesture_registered = true;
 }
 
@@ -87,4 +96,9 @@ void input_set_game_state(bool active, input_action_cb_t up)
 {
     game_active = active;
     up_action = up;
+}
+
+void input_set_activity_callback(input_action_cb_t callback)
+{
+    activity_callback = callback;
 }
