@@ -134,6 +134,10 @@ static void activity_reset(void)
     }
 }
 
+#define GAMES_PER_PAGE 4
+#define GAME_COUNT 8
+#define LAUNCHER_PAGE_COUNT ((GAME_COUNT + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE)
+
 static void settings_gesture_cb(lv_event_t *e);
 
 static void clear_screen(void)
@@ -514,9 +518,6 @@ static const game_entry_t games[] = {
     { "Test-App-8", "App 8" }
 };
 
-#define GAME_COUNT ((int)(sizeof(games) / sizeof(games[0])))
-#define GAMES_PER_PAGE 4
-#define LAUNCHER_PAGE_COUNT ((GAME_COUNT + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE)
 
 static void launcher_button_cb(lv_event_t *e)
 {
