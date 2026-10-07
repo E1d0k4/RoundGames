@@ -684,9 +684,10 @@ static void screensaver_tick(lv_timer_t *timer)
 static void screensaver_wake_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    for (int i = 0; i < 8; i++) screensaver_effects[i] = NULL;
+    for (int i = 0; i < 6; i++) theme_effects[i] = NULL;
     screensaver_clock = NULL;
     activity_reset();
+    apply_theme(lv_scr_act());
 }
 
 typedef struct {
