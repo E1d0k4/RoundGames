@@ -7,6 +7,8 @@ static int launcher_page_count = 1;
 static input_action_cb_t bottom_action = NULL;
 static input_action_cb_t left_action = NULL;
 static input_action_cb_t right_action = NULL;
+static input_action_cb_t up_action = NULL;
+static bool game_active = false;
 static bool gesture_registered = false;
 
 static void input_gesture_cb(lv_event_t *e)
@@ -20,6 +22,11 @@ static void input_gesture_cb(lv_event_t *e)
 
     if (dir == LV_DIR_BOTTOM) {
         if (bottom_action) bottom_action();
+        return;
+    }
+
+    if (dir == LV_DIR_TOP) {
+        if (game_active && up_action) up_action();
         return;
     }
 
@@ -42,6 +49,8 @@ void input_init(void)
     bottom_action = NULL;
     left_action = NULL;
     right_action = NULL;
+    up_action = NULL;
+    game_active = false;
     gesture_registered = false;
 }
 
@@ -72,4 +81,10 @@ void input_set_actions(input_action_cb_t bottom, input_action_cb_t left, input_a
     bottom_action = bottom;
     left_action = left;
     right_action = right;
+}
+
+void input_set_game_state(bool active, input_action_cb_t up)
+{
+    game_active = active;
+    up_action = up;
 }
