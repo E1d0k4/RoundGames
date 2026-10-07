@@ -5,6 +5,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+concurrency:
+  group: roundgames-build-and-pages
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pages: write
@@ -86,11 +90,12 @@ jobs:
       - name: Retry Pages deployment
         if: steps.deployment.outcome == 'failure'
         shell: bash
-        run: sleep 30
+        run: sleep 90
 
       - name: Deploy Pages installer (retry)
         id: deployment_retry
         if: steps.deployment.outcome == 'failure'
+        continue-on-error: true
         uses: actions/deploy-pages@v4
 
       - name: Publish installer firmware
