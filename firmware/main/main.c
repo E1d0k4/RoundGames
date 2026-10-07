@@ -10,6 +10,7 @@
 
 #include "display.h"
 #include "input.h"
+#include "launcher.h"
 #include "audio.h"
 #include "language.h"
 #include "settings.h"
@@ -112,15 +113,12 @@ static void activity_reset(void)
     screensaver_activity_reset();
 }
 
-#define GAMES_PER_PAGE 4
-#define GAME_COUNT 8
-#define LAUNCHER_PAGE_COUNT ((GAME_COUNT + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE)
 
 
 static void clear_screen(void)
 {
     launcher_active = false;
-    input_set_launcher_state(false, input_get_launcher_page(), LAUNCHER_PAGE_COUNT);
+    launcher_set_active(false);
     activity_reset();
     lv_obj_clean(lv_scr_act());
     brightness_slider = NULL;
@@ -424,26 +422,8 @@ static void build_info_page(void)
 }
 
 
-typedef struct {
-    const char *id;
-    const char *name;
-} game_entry_t;
-
-static const game_entry_t games[] = {
-    { "Tic-Tac-Toe", "Tic-Tac-Toe" },
-    { "Test-App-2", "App 2" },
-    { "Test-App-3", "App 3" },
-    { "Test-App-4", "App 4" },
-    { "Test-App-5", "App 5" },
-    { "Test-App-6", "App 6" },
-    { "Test-App-7", "App 7" },
-    { "Test-App-8", "App 8" }
-};
-
-
-static void launcher_button_cb(lv_event_t *e)
+static void launcher_game_action(int game_index, const char *name)
 {
-    int game_index = (int)(intptr_t)lv_event_get_user_data(e);
     activity_reset();
     if (game_index == 0) {
         show_status("Tic-Tac-Toe",
@@ -452,9 +432,9 @@ static void launcher_button_cb(lv_event_t *e)
     } else {
         char msg[64];
         snprintf(msg, sizeof(msg), "%s\n%s",
-                 games[game_index].name,
+                 name,
                  tr("Test placeholder", "Test-Platzhalter"));
-        show_status(games[game_index].name, msg);
+        show_status(name, msg);
     }
 }
 
@@ -462,47 +442,10 @@ static void build_launcher(void)
 {
     clear_screen();
     launcher_active = true;
-    input_set_launcher_state(true, input_get_launcher_page(), LAUNCHER_PAGE_COUNT);
-
-    lv_obj_t *screen = lv_scr_act();
-    int start = input_get_launcher_page() * GAMES_PER_PAGE;
-
-    for (int slot = 0; slot < GAMES_PER_PAGE; slot++) {
-        int game_index = start + slot;
-        int col = slot % 2;
-        int row = slot / 2;
-
-        lv_obj_t *button = lv_button_create(screen);
-        lv_obj_set_size(button, 185, 120);
-        lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205,
-                     82 + row * 145);
-        style_option_button(button, false);
-
-        lv_obj_t *label = lv_label_create(button);
-        lv_label_set_text(label, games[game_index].name);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-        lv_obj_center(label);
-        lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
-                            (void *)(intptr_t)game_index);
-        /* Let launcher swipes reach the screen instead of being handled by the app button. */
-        lv_obj_add_flag(button, LV_OBJ_FLAG_GESTURE_BUBBLE);
-    }
-
-    for (int i = 0; i < LAUNCHER_PAGE_COUNT; i++) {
-        lv_obj_t *dot = lv_obj_create(screen);
-        lv_obj_set_size(dot, i == input_get_launcher_page() ? 10 : 7,
-                        i == input_get_launcher_page() ? 10 : 7);
-        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(dot,
-                                  i == input_get_launcher_page() ? lv_color_hex(0x20A050)
-                                                     : lv_color_hex(0x60656D), 0);
-        lv_obj_set_style_border_width(dot, 0, 0);
-        lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(dot, LV_OBJ_FLAG_GESTURE_BUBBLE);
-        lv_obj_align(dot, LV_ALIGN_BOTTOM_MID,
-                     (i - (LAUNCHER_PAGE_COUNT - 1) / 2) * 18, -18);
-    }
+    launcher_set_active(true);
+    launcher_build(lv_scr_act(), launcher_game_action);
 }
+
 static void show_status(const char *title,const char *message)
 {
     clear_screen(); lv_obj_t *screen=lv_scr_act(); add_title(screen,title);
@@ -519,6 +462,7 @@ void app_main(void)
     input_init();
     input_set_actions(gesture_bottom_cb, gesture_left_cb, gesture_right_cb);
     load_settings();
+    launcher_init(8);
     display_init();
     display_set_brightness(current_brightness);
     display_lock();
