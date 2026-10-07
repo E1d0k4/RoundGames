@@ -712,11 +712,11 @@ do_move(idx);
 
 }
 
-static void back_btn_cb(lv_event_t *e)
+static void home_btn_cb(lv_event_t *e)
 {
     (void)e;
     kill_timers();
-    if (s_back_callback) s_back_callback();
+    menu_create();
 }
 
 static void restart_cb(lv_event_t *e)
@@ -805,7 +805,7 @@ s_lbl[i]  = l;
 
     }
 
-lv_obj_t *bm = make_button(scr, LV_SYMBOL_HOME, 100, 42, COL_CELL, back_btn_cb);
+lv_obj_t *bm = make_button(scr, LV_SYMBOL_HOME, 100, 42, COL_CELL, home_btn_cb);
 
 lv_obj_align(bm, LV_ALIGN_TOP_MID, -55, 388);
 
