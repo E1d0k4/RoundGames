@@ -628,7 +628,9 @@ static void screensaver_tick(lv_timer_t *timer)
     char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
     lv_label_set_text(clock, buf);
     lv_obj_set_style_text_color(clock, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(clock, &lv_font_montserrat_96, 0);
+    lv_obj_set_style_text_font(clock, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_transform_scale_x(clock, 512, 0);
+    lv_obj_set_style_transform_scale_y(clock, 512, 0);
     lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(clock);
 }
