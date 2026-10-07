@@ -70,6 +70,11 @@ bool screensaver_is_active(void)
     return active;
 }
 
+bool screensaver_is_enabled(void)
+{
+    return enabled;
+}
+
 static void screensaver_wake_cb(lv_event_t *event)
 {
     LV_UNUSED(event);
