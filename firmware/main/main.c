@@ -134,7 +134,6 @@ static void activity_reset(void)
 
 static void settings_gesture_cb(lv_event_t *e);
 static void build_games_menu(void);
-static void launcher_gesture_cb(lv_event_t *e);
 
 static void clear_screen(void)
 {
@@ -538,7 +537,7 @@ static void build_games_menu(void)
         style_option_button(button, (favorite_games & (1u << i)) != 0);
 
         lv_obj_t *star = lv_label_create(button);
-        lv_label_set_text(star, (favorite_games & (1u << i)) ? LV_SYMBOL_STAR : LV_SYMBOL_CLOSE);
+        lv_label_set_text(star, (favorite_games & (1u << i)) ? LV_SYMBOL_CHECK : LV_SYMBOL_CLOSE);
         lv_obj_set_style_text_font(star, &lv_font_montserrat_20, 0);
         lv_obj_align(star, LV_ALIGN_LEFT_MID, 12, 0);
 
@@ -603,7 +602,7 @@ static void build_launcher(void)
     if (page_count > 1) {
         for (int i = 0; i < page_count; i++) {
             lv_obj_t *dot = lv_label_create(screen);
-            lv_label_set_text(dot, i == launcher_page ? LV_SYMBOL_CIRCLE : LV_SYMBOL_BULLET);
+            lv_label_set_text(dot, i == launcher_page ? LV_SYMBOL_CHECK : LV_SYMBOL_BULLET);
             lv_obj_set_style_text_font(dot, &lv_font_montserrat_14, 0);
             lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, (i - (page_count - 1) / 2) * 18, -18);
         }
