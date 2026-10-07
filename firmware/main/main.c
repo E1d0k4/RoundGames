@@ -3,8 +3,6 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
-#include <time.h>
-#include <sys/time.h>
 
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -15,6 +13,7 @@
 #include "audio.h"
 #include "language.h"
 #include "settings.h"
+#include "clock.h"
 
 static const char *TAG = "roundgames";
 
@@ -72,7 +71,7 @@ static void save_settings(void)
         .screensaver_enabled = screensaver_enabled,
         .favorite_games = favorite_games
     };
-    time(&data.epoch);
+    data.epoch = clock_now();
     settings_save(&data);
 }
 
@@ -251,9 +250,9 @@ static void screensaver_toggle_cb(lv_event_t *e) { LV_UNUSED(e); screensaver_ena
 static void clock_adjust_cb(lv_event_t *e)
 {
     int delta = (int)(intptr_t)lv_event_get_user_data(e);
-    time_t now; time(&now); now += delta;
-    struct timeval tv = { .tv_sec = now, .tv_usec = 0 }; settimeofday(&tv, NULL);
-    save_settings(); build_clock_page();
+    clock_adjust_seconds(delta);
+    save_settings();
+    build_clock_page();
 }
 
 static void settings_gesture_cb(lv_event_t *e)
@@ -414,7 +413,8 @@ static void build_language_page(void)
 static void build_clock_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Clock","Uhr"));
-    time_t now; time(&now); struct tm tm_now; localtime_r(&now,&tm_now); char buf[8]; strftime(buf,sizeof(buf),"%H:%M",&tm_now);
+    char buf[8];
+    clock_format_hm(buf, sizeof(buf));
     lv_obj_t *clock=lv_label_create(s); lv_label_set_text(clock,buf); lv_obj_set_style_text_font(clock,&lv_font_montserrat_24,0); lv_obj_align(clock,LV_ALIGN_TOP_MID,0,78);
     lv_obj_t *mh=lv_button_create(s); lv_obj_set_size(mh,170,55); lv_obj_align(mh,LV_ALIGN_TOP_MID,-95,169); style_option_button(mh,false); lv_obj_t *mhl=lv_label_create(mh); lv_label_set_text(mhl,tr("- 1 h","- 1 Std")); lv_obj_center(mhl); lv_obj_add_event_cb(mh,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)-3600);
     lv_obj_t *ph=lv_button_create(s); lv_obj_set_size(ph,170,55); lv_obj_align(ph,LV_ALIGN_TOP_MID,95,169); style_option_button(ph,false); lv_obj_t *phl=lv_label_create(ph); lv_label_set_text(phl,tr("+ 1 h","+ 1 Std")); lv_obj_center(phl); lv_obj_add_event_cb(ph,clock_adjust_cb,LV_EVENT_CLICKED,(void*)(intptr_t)3600);
@@ -519,9 +519,8 @@ static void screensaver_tick(lv_timer_t *timer)
 
     if (screensaver_active) {
         if (screensaver_clock) {
-            time_t now; time(&now);
-            struct tm tm_now; localtime_r(&now, &tm_now);
-            char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
+            char buf[32];
+            clock_format_hm(buf, sizeof(buf));
             lv_label_set_text(screensaver_clock, buf);
         }
         return;
@@ -586,9 +585,8 @@ static void screensaver_tick(lv_timer_t *timer)
     }
 
     screensaver_clock = lv_label_create(screen_saver);
-    time_t now; time(&now);
-    struct tm tm_now; localtime_r(&now, &tm_now);
-    char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
+    char buf[32];
+    clock_format_hm(buf, sizeof(buf));
     lv_label_set_text(screensaver_clock, buf);
     lv_obj_clear_flag(screensaver_clock, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_text_color(screensaver_clock, lv_color_hex(0xFFFFFF), 0);
