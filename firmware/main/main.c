@@ -41,6 +41,7 @@ static lv_obj_t *dim_slider = NULL;
 static lv_obj_t *dim_value_label = NULL;
 static lv_obj_t *screen_saver = NULL;
 static lv_timer_t *screensaver_timer = NULL;
+static lv_timer_t *theme_animation_timer = NULL;
 static lv_obj_t *theme_effects[6] = {0};
 static int theme_phase = 0;
 static lv_obj_t *screensaver_clock = NULL;
@@ -565,12 +566,14 @@ static void build_info_page(void)
     add_back_button(s,false);
 }
 
-static void screensaver_tick(lv_timer_t *timer)
+static void theme_animation_tick(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
 
-    /* Keep Aurora/Pulse moving smoothly on every screen. */
+    if (theme != 2 && theme != 3) return;
+
     theme_phase = (theme_phase + 1) % 360;
+
     if (theme == 2) {
         for (int i = 0; i < 6; i++) {
             if (!theme_effects[i]) continue;
@@ -583,7 +586,7 @@ static void screensaver_tick(lv_timer_t *timer)
                 (lv_opa_t)(75 + (int)((sin((theme_phase + i * 50) *
                 0.0174533) + 1.0) * 25.0)), 0);
         }
-    } else if (theme == 3) {
+    } else {
         for (int i = 0; i < 6; i++) {
             if (!theme_effects[i]) continue;
             int size = 65 +
@@ -599,6 +602,11 @@ static void screensaver_tick(lv_timer_t *timer)
                 0.0174533) + 1.0) * 45.0)), 0);
         }
     }
+}
+
+static void screensaver_tick(lv_timer_t *timer)
+{
+    LV_UNUSED(timer);
 
     static int idle_ticks = 0;
     if (!screensaver_enabled) return;
@@ -810,6 +818,7 @@ void app_main(void)
 
     xTaskCreate(tone_task, "tone_task", 4096, NULL, 4, &tone_task_handle);
     screensaver_timer=lv_timer_create(screensaver_tick,100,NULL);
+    theme_animation_timer=lv_timer_create(theme_animation_tick,33,NULL);
     bsp_display_unlock();
     ESP_LOGI(TAG,"RoundGames Phase 3 UI ready");
 }
