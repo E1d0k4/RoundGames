@@ -369,48 +369,56 @@ static void play_test_tone_blocking(int requested_volume)
             ESP_LOGE(TAG, "Speaker codec init failed");
             return;
         }
+
+        esp_codec_dev_sample_info_t fs = {
+            .sample_rate = 24000,
+            .channel = 2,
+            .bits_per_sample = 16
+        };
+
+        esp_err_t open_ret = esp_codec_dev_open(speaker_codec, &fs);
+        if (open_ret != ESP_OK) {
+            ESP_LOGE(TAG, "Speaker open failed: %s", esp_err_to_name(open_ret));
+            speaker_codec = NULL;
+            return;
+        }
+
+        ESP_LOGI(TAG, "Speaker codec opened: 24000 Hz, stereo, 16-bit");
     }
 
-    esp_codec_dev_set_out_vol(speaker_codec, volume_to_codec(requested_volume));
+    esp_err_t vol_ret = esp_codec_dev_set_out_vol(speaker_codec, volume_to_codec(requested_volume));
+    if (vol_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Speaker volume failed: %s", esp_err_to_name(vol_ret));
+        return;
+    }
 
     /*
-     * The Waveshare speaker path expects stereo PCM.  Mono happened to
-     * compile, but on the board it produces no audible output. Keep the
-     * tone short and stereo so the UI stays responsive.
+     * The board uses stereo I2S transport even though the connected
+     * speaker is physically mono. 24 kHz / 16-bit stereo is the
+     * board's documented PCM format.
      */
-    static int16_t tone[2205 * 2];
+    static int16_t tone[2880 * 2];
     static bool ready = false;
     if (!ready) {
-        for (int i = 0; i < 2205; i++) {
-            float t = (float)i / 22050.0f;
+        for (int i = 0; i < 2880; i++) {
+            float t = (float)i / 24000.0f;
             float envelope = 1.0f;
             if (t < 0.008f) envelope = t / 0.008f;
-            if (t > 0.070f) envelope = (0.100f - t) / 0.030f;
+            if (t > 0.085f) envelope = (0.120f - t) / 0.035f;
             if (envelope < 0.0f) envelope = 0.0f;
-            float sample = sinf(2.0f * 3.14159265f * 1200.0f * t);
-            int16_t value = (int16_t)(sample * envelope * 9000.0f);
+
+            float sample = sinf(2.0f * 3.14159265f * 1000.0f * t);
+            int16_t value = (int16_t)(sample * envelope * 10000.0f);
             tone[i * 2] = value;
             tone[i * 2 + 1] = value;
         }
         ready = true;
     }
 
-    esp_codec_dev_sample_info_t fs = {
-        .sample_rate = 22050,
-        .channel = 2,
-        .bits_per_sample = 16
-    };
-
-    if (esp_codec_dev_open(speaker_codec, &fs) != ESP_OK) {
-        ESP_LOGE(TAG, "Speaker open failed");
-        return;
-    }
-
     esp_err_t write_ret = esp_codec_dev_write(speaker_codec, tone, sizeof(tone));
     if (write_ret != ESP_OK) {
         ESP_LOGE(TAG, "Speaker write failed: %s", esp_err_to_name(write_ret));
     }
-    esp_codec_dev_close(speaker_codec);
 }
 
 static void tone_task(void *arg)
@@ -610,6 +618,33 @@ void app_main(void)
     bsp_display_brightness_set(current_brightness);
     bsp_display_lock(-1);
     build_launcher();
+
+    /*
+     * Initialize and open the speaker once. The codec/BSP owns the
+     * board-specific I2S and PA (GPIO46) setup. Keeping the stream open
+     * avoids repeatedly reconfiguring the ES8311 for every UI beep.
+     */
+    speaker_codec = bsp_audio_codec_speaker_init();
+    if (speaker_codec) {
+        esp_codec_dev_sample_info_t fs = {
+            .sample_rate = 24000,
+            .channel = 2,
+            .bits_per_sample = 16
+        };
+        esp_err_t open_ret = esp_codec_dev_open(speaker_codec, &fs);
+        if (open_ret == ESP_OK) {
+            esp_codec_dev_set_out_vol(speaker_codec,
+                                      sound_muted ? 0 : volume_to_codec(current_volume));
+            ESP_LOGI(TAG, "Speaker ready");
+        } else {
+            ESP_LOGE(TAG, "Speaker open failed during startup: %s",
+                     esp_err_to_name(open_ret));
+            speaker_codec = NULL;
+        }
+    } else {
+        ESP_LOGE(TAG, "Speaker codec init failed during startup");
+    }
+
     xTaskCreate(tone_task, "tone_task", 4096, NULL, 4, &tone_task_handle);
     screensaver_timer=lv_timer_create(screensaver_tick,1000,NULL);
     bsp_display_unlock();
