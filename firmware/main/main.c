@@ -26,7 +26,6 @@ static int dim_brightness = 10;
 static int dim_timeout = 30;
 static int language = 0;
 static int theme = 0;
-static int screensaver_style = 1;
 static bool sound_muted = false;
 static bool screensaver_enabled = true;
 static bool screensaver_active = false;
@@ -42,7 +41,8 @@ static lv_obj_t *dim_slider = NULL;
 static lv_obj_t *dim_value_label = NULL;
 static lv_obj_t *screen_saver = NULL;
 static lv_timer_t *screensaver_timer = NULL;
-static lv_obj_t *screensaver_effects[8] = {0};
+static lv_obj_t *theme_effects[6] = {0};
+static int theme_phase = 0;
 static lv_obj_t *screensaver_clock = NULL;
 static int inactivity_seconds = 0;
 static bool gesture_registered = false;
@@ -59,6 +59,7 @@ static void build_volume_page(void);
 static void build_language_page(void);
 static void build_clock_page(void);
 static void build_theme_page(void);
+static void theme_cb(lv_event_t *e);
 static void build_info_page(void);
 static void show_status(const char *title, const char *message);
 static void play_test_tone(void);
@@ -75,7 +76,6 @@ static void save_settings(void)
     nvs_set_i32(nvs, "dim_time", dim_timeout);
     nvs_set_i32(nvs, "language", language);
     nvs_set_i32(nvs, "theme", theme);
-    nvs_set_i32(nvs, "ss_style", screensaver_style);
     nvs_set_i32(nvs, "muted", sound_muted);
     nvs_set_i32(nvs, "screensaver", screensaver_enabled);
     nvs_set_u32(nvs, "favorites", favorite_games);
@@ -96,7 +96,6 @@ static void load_settings(void)
     if (nvs_get_i32(nvs, "dim_time", &value) == ESP_OK) dim_timeout = value;
     if (nvs_get_i32(nvs, "language", &value) == ESP_OK) language = value;
     if (nvs_get_i32(nvs, "theme", &value) == ESP_OK) theme = value;
-    if (nvs_get_i32(nvs, "ss_style", &value) == ESP_OK) screensaver_style = value;
     if (nvs_get_i32(nvs, "muted", &value) == ESP_OK) sound_muted = value;
     if (nvs_get_i32(nvs, "screensaver", &value) == ESP_OK) screensaver_enabled = value;
     uint32_t favorites;
@@ -107,8 +106,7 @@ static void load_settings(void)
         settimeofday(&tv, NULL);
     }
     nvs_close(nvs);
-    if (theme < 0 || theme > 1) theme = 0;
-    if (screensaver_style < 0 || screensaver_style > 2) screensaver_style = 1;
+    if (theme < 0 || theme > 3) theme = 0;
     if (current_brightness < 10) current_brightness = 10;
     if (current_brightness > 100) current_brightness = 100;
     if (current_volume < 0) current_volume = 0;
@@ -121,12 +119,47 @@ static void load_settings(void)
 
 static void apply_theme(lv_obj_t *screen)
 {
+    for (int i = 0; i < 6; i++) theme_effects[i] = NULL;
+    theme_phase = 0;
+
     if (theme == 0) {
         lv_obj_set_style_bg_color(screen, lv_color_hex(0x101014), 0);
         lv_obj_set_style_text_color(screen, lv_color_hex(0xFFFFFF), 0);
-    } else {
+        return;
+    }
+    if (theme == 1) {
         lv_obj_set_style_bg_color(screen, lv_color_hex(0xF2F2F2), 0);
         lv_obj_set_style_text_color(screen, lv_color_hex(0x101014), 0);
+        return;
+    }
+
+    lv_obj_set_style_bg_color(screen,
+                              lv_color_hex(theme == 2 ? 0x07151A : 0x120914), 0);
+    lv_obj_set_style_text_color(screen, lv_color_hex(0xFFFFFF), 0);
+
+    const uint32_t aurora_colors[] =
+        {0x00BFA5, 0x1976D2, 0x7E57C2, 0x26A69A, 0x1565C0, 0xAB47BC};
+    const uint32_t pulse_colors[] =
+        {0x7C3AED, 0xDB2777, 0x2563EB, 0x059669, 0xF59E0B, 0x06B6D4};
+    const uint32_t *colors = (theme == 2) ? aurora_colors : pulse_colors;
+
+    for (int i = 0; i < 6; i++) {
+        theme_effects[i] = lv_obj_create(screen);
+        lv_obj_set_style_radius(theme_effects[i], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(theme_effects[i], lv_color_hex(colors[i]), 0);
+        lv_obj_set_style_bg_opa(theme_effects[i], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(theme_effects[i], 0, 0);
+        lv_obj_clear_flag(theme_effects[i], LV_OBJ_FLAG_SCROLLABLE);
+
+        if (theme == 2) {
+            lv_obj_set_size(theme_effects[i], 190, 190);
+            lv_obj_set_pos(theme_effects[i], -15 + i * 70, 35 + (i % 3) * 105);
+            lv_obj_set_style_opa(theme_effects[i], 95, 0);
+        } else {
+            lv_obj_set_size(theme_effects[i], 85, 85);
+            lv_obj_set_pos(theme_effects[i], 15 + i * 82, 55 + (i % 3) * 145);
+            lv_obj_set_style_opa(theme_effects[i], 130, 0);
+        }
     }
 }
 
@@ -223,7 +256,6 @@ static void dim_time_cb(lv_event_t *e) { LV_UNUSED(e); dim_timeout += 10; if (di
 
 static void language_cb(lv_event_t *e) { language = (int)(intptr_t)lv_event_get_user_data(e); save_settings(); build_language_page(); }
 static void theme_cb(lv_event_t *e) { theme = (int)(intptr_t)lv_event_get_user_data(e); save_settings(); build_theme_page(); }
-static void screensaver_style_cb(lv_event_t *e) { screensaver_style = (int)(intptr_t)lv_event_get_user_data(e); save_settings(); build_theme_page(); }
 static void screensaver_toggle_cb(lv_event_t *e) { LV_UNUSED(e); screensaver_enabled = !screensaver_enabled; save_settings(); build_brightness_page(); }
 
 static void clock_adjust_cb(lv_event_t *e)
@@ -486,52 +518,42 @@ static void build_clock_page(void)
 
 static void build_theme_page(void)
 {
-    clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,tr("Theme","Darstellung"));
+    clear_screen();
+    lv_obj_t *s = lv_scr_act();
+    add_title(s, tr("Theme", "Darstellung"));
 
-    lv_obj_t *normal=lv_label_create(s);
-    lv_label_set_text(normal,tr("Normal background","Normaler Hintergrund"));
-    lv_obj_set_style_text_font(normal,&lv_font_montserrat_16,0);
-    lv_obj_align(normal,LV_ALIGN_TOP_MID,0,88);
+    lv_obj_t *hint = lv_label_create(s);
+    lv_label_set_text(hint, tr("Background", "Hintergrund"));
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_16, 0);
+    lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 88);
 
-    const char *names[] = { tr("Dark","Dunkel"), tr("Light","Hell") };
-    for (int i = 0; i < 2; i++) {
-        lv_obj_t *b = lv_button_create(s);
-        lv_obj_set_size(b,170,62);
-        lv_obj_align(b,LV_ALIGN_TOP_MID,(i % 2) ? 95 : -95,116);
-        style_option_button(b,theme==i);
-        lv_obj_t *l=lv_label_create(b);
-        lv_label_set_text(l,names[i]);
-        lv_obj_set_style_text_font(l,&lv_font_montserrat_20,0);
-        lv_obj_center(l);
-        lv_obj_add_event_cb(b,theme_cb,LV_EVENT_CLICKED,(void*)(intptr_t)i);
+    const char *names[] = {
+        tr("Dark", "Dunkel"), tr("Light", "Hell"), "Aurora", "Pulse"
+    };
+    for (int i = 0; i < 4; i++) {
+        lv_obj_t *button = lv_button_create(s);
+        lv_obj_set_size(button, 170, 62);
+        lv_obj_align(button, LV_ALIGN_TOP_MID,
+                     (i % 2) ? 95 : -95, 116 + (i / 2) * 76);
+        style_option_button(button, theme == i);
+        lv_obj_t *label = lv_label_create(button);
+        lv_label_set_text(label, names[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+        lv_obj_center(label);
+        lv_obj_add_event_cb(button, theme_cb, LV_EVENT_CLICKED,
+                            (void *)(intptr_t)i);
     }
 
-    lv_obj_t *ss=lv_label_create(s);
-    lv_label_set_text(ss,tr("Screensaver background","Bildschirmschoner"));
-    lv_obj_set_style_text_font(ss,&lv_font_montserrat_16,0);
-    lv_obj_align(ss,LV_ALIGN_TOP_MID,0,204);
+    lv_obj_t *note = lv_label_create(s);
+    lv_label_set_text(note,
+        tr("Aurora and Pulse are animated backgrounds for the whole interface.",
+           "Aurora und Pulse sind animierte Hintergründe für die gesamte Oberfläche."));
+    lv_obj_set_style_text_font(note, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_align(note, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(note, 420);
+    lv_obj_align(note, LV_ALIGN_TOP_MID, 0, 278);
 
-    const char *effects[] = { tr("None","Kein Effekt"), "Aurora", "Pulse" };
-    for (int i = 0; i < 3; i++) {
-        lv_obj_t *b = lv_button_create(s);
-        lv_obj_set_size(b,120,58);
-        lv_obj_align(b,LV_ALIGN_TOP_MID,-132 + i * 132,232);
-        style_option_button(b,screensaver_style==i);
-        lv_obj_t *l=lv_label_create(b);
-        lv_label_set_text(l,effects[i]);
-        lv_obj_set_style_text_font(l,&lv_font_montserrat_16,0);
-        lv_obj_center(l);
-        lv_obj_add_event_cb(b,screensaver_style_cb,LV_EVENT_CLICKED,(void*)(intptr_t)i);
-    }
-
-    lv_obj_t *hint=lv_label_create(s);
-    lv_label_set_text(hint,tr("Aurora and Pulse affect only the screensaver.","Aurora und Pulse wirken nur im Bildschirmschoner."));
-    lv_obj_set_style_text_font(hint,&lv_font_montserrat_14,0);
-    lv_obj_set_style_text_align(hint,LV_TEXT_ALIGN_CENTER,0);
-    lv_obj_set_width(hint,420);
-    lv_obj_align(hint,LV_ALIGN_TOP_MID,0,302);
-
-    add_back_button(s,false);
+    add_back_button(s, false);
 }
 
 static void build_info_page(void)
@@ -546,40 +568,54 @@ static void build_info_page(void)
 static void screensaver_tick(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
+
+    /* Keep Aurora/Pulse moving smoothly on every screen. */
+    theme_phase = (theme_phase + 1) % 360;
+    if (theme == 2) {
+        for (int i = 0; i < 6; i++) {
+            if (!theme_effects[i]) continue;
+            int x = -15 + i * 70 +
+                    (int)(sin((theme_phase + i * 60) * 0.0174533) * 55.0);
+            int y = 35 + (i % 3) * 105 +
+                    (int)(cos((theme_phase + i * 75) * 0.0174533) * 45.0);
+            lv_obj_set_pos(theme_effects[i], x, y);
+            lv_obj_set_style_opa(theme_effects[i],
+                (lv_opa_t)(75 + (int)((sin((theme_phase + i * 50) *
+                0.0174533) + 1.0) * 25.0)), 0);
+        }
+    } else if (theme == 3) {
+        for (int i = 0; i < 6; i++) {
+            if (!theme_effects[i]) continue;
+            int size = 65 +
+                (int)((sin((theme_phase + i * 60) * 0.0174533) + 1.0) * 30.0);
+            int x = 10 + i * 82 +
+                (int)(sin((theme_phase + i * 45) * 0.0174533) * 18.0);
+            int y = 50 + (i % 3) * 145 +
+                (int)(cos((theme_phase + i * 55) * 0.0174533) * 20.0);
+            lv_obj_set_size(theme_effects[i], size, size);
+            lv_obj_set_pos(theme_effects[i], x, y);
+            lv_obj_set_style_opa(theme_effects[i],
+                (lv_opa_t)(90 + (int)((sin((theme_phase + i * 60) *
+                0.0174533) + 1.0) * 45.0)), 0);
+        }
+    }
+
+    static int idle_ticks = 0;
     if (!screensaver_enabled) return;
 
     if (screensaver_active) {
-        lv_obj_t *clock = screensaver_clock;
-        if (clock) {
+        if (screensaver_clock) {
             time_t now; time(&now);
             struct tm tm_now; localtime_r(&now, &tm_now);
             char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
-            lv_label_set_text(clock, buf);
-        }
-
-        if (screensaver_style == 1) {
-            static int phase = 0;
-            phase = (phase + 2) % 360;
-            for (int i = 0; i < 6; i++) {
-                if (!screensaver_effects[i]) continue;
-                int x = -10 + i * 70 + (int)(sin((phase + i * 60) * 0.0174533) * 55.0);
-                int y = 20 + (i % 3) * 105 + (int)(cos((phase + i * 75) * 0.0174533) * 45.0);
-                lv_obj_set_pos(screensaver_effects[i], x, y);
-            }
-        } else if (screensaver_style == 2) {
-            static int pulse = 0;
-            pulse = (pulse + 8) % 360;
-            for (int i = 0; i < 6; i++) {
-                if (!screensaver_effects[i]) continue;
-                int size = 60 + (int)((sin((pulse + i * 60) * 0.0174533) + 1.0) * 25.0);
-                lv_obj_set_size(screensaver_effects[i], size, size);
-                lv_obj_set_style_opa(screensaver_effects[i],
-                                     (lv_opa_t)(55 + (int)((sin((pulse + i * 60) * 0.0174533) + 1.0) * 45.0)), 0);
-            }
+            lv_label_set_text(screensaver_clock, buf);
         }
         return;
     }
 
+    idle_ticks++;
+    if (idle_ticks < 10) return;
+    idle_ticks = 0;
     inactivity_seconds++;
     if (inactivity_seconds < dim_timeout) return;
 
@@ -589,53 +625,60 @@ static void screensaver_tick(lv_timer_t *timer)
     lv_obj_t *screen = lv_scr_act();
     screen_saver = lv_obj_create(screen);
     lv_obj_set_size(screen_saver, LV_PCT(100), LV_PCT(100));
-    /* The screensaver is an opaque full-screen layer: menus and controls
-     * underneath must not remain visible while the clock is shown. */
-    lv_obj_set_style_bg_color(screen_saver, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_color(screen_saver,
+                              lv_color_hex(theme == 2 ? 0x07151A :
+                                           theme == 3 ? 0x120914 : 0x000000), 0);
     lv_obj_set_style_bg_opa(screen_saver, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
 
-    for (int i = 0; i < 8; i++) screensaver_effects[i] = NULL;
+    for (int i = 0; i < 6; i++) theme_effects[i] = NULL;
 
-    if (screensaver_style == 1) {
-        const uint32_t colors[] = {0x00BFA5, 0x1976D2, 0x7E57C2, 0x26A69A, 0x1565C0, 0xAB47BC};
+    if (theme == 2 || theme == 3) {
+        const uint32_t colors[] = {
+            0x00BFA5, 0x1976D2, 0x7E57C2,
+            0x26A69A, 0x1565C0, 0xAB47BC
+        };
+        const uint32_t pulse_colors[] = {
+            0x7C3AED, 0xDB2777, 0x2563EB,
+            0x059669, 0xF59E0B, 0x06B6D4
+        };
+        const uint32_t *chosen = (theme == 2) ? colors : pulse_colors;
+
         for (int i = 0; i < 6; i++) {
-            screensaver_effects[i] = lv_obj_create(screen_saver);
-            lv_obj_set_size(screensaver_effects[i], 180, 180);
-            lv_obj_set_pos(screensaver_effects[i], 10 + i * 70, 30 + (i % 3) * 105);
-            lv_obj_set_style_radius(screensaver_effects[i], LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_color(screensaver_effects[i], lv_color_hex(colors[i]), 0);
-            lv_obj_set_style_opa(screensaver_effects[i], 110, 0);
-            lv_obj_set_style_bg_opa(screensaver_effects[i], LV_OPA_COVER, 0);
-            lv_obj_set_style_border_width(screensaver_effects[i], 0, 0);
-        }
-    } else if (screensaver_style == 2) {
-        const uint32_t colors[] = {0x7C3AED, 0xDB2777, 0x2563EB, 0x059669, 0xF59E0B, 0x06B6D4};
-        for (int i = 0; i < 6; i++) {
-            screensaver_effects[i] = lv_obj_create(screen_saver);
-            lv_obj_set_size(screensaver_effects[i], 80, 80);
-            lv_obj_set_pos(screensaver_effects[i], 20 + i * 80, 65 + (i % 3) * 150);
-            lv_obj_set_style_radius(screensaver_effects[i], LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_color(screensaver_effects[i], lv_color_hex(colors[i]), 0);
-            lv_obj_set_style_opa(screensaver_effects[i], 150, 0);
-            lv_obj_set_style_bg_opa(screensaver_effects[i], LV_OPA_COVER, 0);
-            lv_obj_set_style_border_width(screensaver_effects[i], 0, 0);
+            theme_effects[i] = lv_obj_create(screen_saver);
+            lv_obj_set_style_radius(theme_effects[i], LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_color(theme_effects[i],
+                                      lv_color_hex(chosen[i]), 0);
+            lv_obj_set_style_bg_opa(theme_effects[i], LV_OPA_COVER, 0);
+            lv_obj_set_style_border_width(theme_effects[i], 0, 0);
+            lv_obj_clear_flag(theme_effects[i], LV_OBJ_FLAG_SCROLLABLE);
+            if (theme == 2) {
+                lv_obj_set_size(theme_effects[i], 190, 190);
+                lv_obj_set_pos(theme_effects[i],
+                               -15 + i * 70, 35 + (i % 3) * 105);
+                lv_obj_set_style_opa(theme_effects[i], 95, 0);
+            } else {
+                lv_obj_set_size(theme_effects[i], 85, 85);
+                lv_obj_set_pos(theme_effects[i],
+                               15 + i * 82, 55 + (i % 3) * 145);
+                lv_obj_set_style_opa(theme_effects[i], 130, 0);
+            }
         }
     }
 
     screensaver_clock = lv_label_create(screen_saver);
-    lv_obj_t *clock = screensaver_clock;
-    time_t now; time(&now); struct tm tm_now; localtime_r(&now, &tm_now);
+    time_t now; time(&now);
+    struct tm tm_now; localtime_r(&now, &tm_now);
     char buf[32]; strftime(buf, sizeof(buf), "%H:%M", &tm_now);
-    lv_label_set_text(clock, buf);
-    lv_obj_set_style_text_color(clock, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(clock, &lv_font_montserrat_48, 0);
-    lv_obj_set_style_transform_scale_x(clock, 512, 0);
-    lv_obj_set_style_transform_scale_y(clock, 512, 0);
-    lv_obj_set_style_text_align(clock, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_center(clock);
+    lv_label_set_text(screensaver_clock, buf);
+    lv_obj_set_style_text_color(screensaver_clock, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_font(screensaver_clock, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_transform_scale_x(screensaver_clock, 512, 0);
+    lv_obj_set_style_transform_scale_y(screensaver_clock, 512, 0);
+    lv_obj_set_style_text_align(screensaver_clock, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_center(screensaver_clock);
 }
 
 static void screensaver_wake_cb(lv_event_t *e)
@@ -765,7 +808,7 @@ void app_main(void)
     }
 
     xTaskCreate(tone_task, "tone_task", 4096, NULL, 4, &tone_task_handle);
-    screensaver_timer=lv_timer_create(screensaver_tick,1000,NULL);
+    screensaver_timer=lv_timer_create(screensaver_tick,100,NULL);
     bsp_display_unlock();
     ESP_LOGI(TAG,"RoundGames Phase 3 UI ready");
 }
