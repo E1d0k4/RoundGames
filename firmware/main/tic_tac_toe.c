@@ -11,6 +11,9 @@
 static lv_obj_t *board_buttons[BOARD_SIZE][BOARD_SIZE];
 static lv_obj_t *status_label;
 static lv_obj_t *action_panel;
+static lv_obj_t *neon_lines[4];
+static lv_timer_t *neon_timer;
+static uint32_t neon_phase;
 static tic_tac_toe_back_cb_t back_callback;
 
 static char board[BOARD_SIZE][BOARD_SIZE];
@@ -56,7 +59,7 @@ static bool board_full(void)
     return true;
 }
 
-static void add_neon_line(lv_obj_t *screen, const lv_point_precise_t *points, uint32_t count)
+static lv_obj_t *add_neon_line(lv_obj_t *screen, const lv_point_precise_t *points, uint32_t count)
 {
     lv_obj_t *line = lv_line_create(screen);
     lv_line_set_points(line, points, count);
@@ -67,6 +70,34 @@ static void add_neon_line(lv_obj_t *screen, const lv_point_precise_t *points, ui
     lv_obj_set_style_shadow_color(line, lv_color_hex(0x39FF66), 0);
     lv_obj_set_style_shadow_opa(line, LV_OPA_80, 0);
     lv_obj_set_style_shadow_width(line, 12, 0);
+    return line;
+}
+
+static void neon_animation_tick(lv_timer_t *timer)
+{
+    LV_UNUSED(timer);
+    neon_phase += 7;
+
+    for (int i = 0; i < 4; i++) {
+        if (!neon_lines[i]) continue;
+        uint32_t phase = neon_phase + (uint32_t)(i * 70);
+        int wobble = (phase % 240 < 120) ? 2 : -2;
+        int pulse = (phase % 180 < 90) ? 100 : 75;
+        lv_obj_set_style_translate_x(neon_lines[i], (i < 2) ? wobble : 0, 0);
+        lv_obj_set_style_translate_y(neon_lines[i], (i >= 2) ? wobble : 0, 0);
+        lv_obj_set_style_shadow_width(neon_lines[i], (pulse > 90) ? 16 : 10, 0);
+        lv_obj_set_style_shadow_opa(neon_lines[i], pulse, 0);
+    }
+}
+
+static void neon_cleanup_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    if (neon_timer) {
+        lv_timer_del(neon_timer);
+        neon_timer = NULL;
+    }
+    for (int i = 0; i < 4; i++) neon_lines[i] = NULL;
 }
 
 static void update_cell(int row, int col)
@@ -76,6 +107,20 @@ static void update_cell(int row, int col)
 
     if (label) {
         lv_label_set_text(label, text);
+        if (board[row][col] == 'X') {
+            lv_obj_set_style_text_color(label, lv_color_hex(0x20A8FF), 0);
+            lv_obj_set_style_text_shadow_color(label, lv_color_hex(0x20A8FF), 0);
+            lv_obj_set_style_text_shadow_opa(label, LV_OPA_90, 0);
+            lv_obj_set_style_text_shadow_width(label, 18, 0);
+        } else if (board[row][col] == 'O') {
+            lv_obj_set_style_text_color(label, lv_color_hex(0xFF3030), 0);
+            lv_obj_set_style_text_shadow_color(label, lv_color_hex(0xFF3030), 0);
+            lv_obj_set_style_text_shadow_opa(label, LV_OPA_90, 0);
+            lv_obj_set_style_text_shadow_width(label, 18, 0);
+        } else {
+            lv_obj_set_style_text_color(label, lv_color_white(), 0);
+            lv_obj_set_style_text_shadow_opa(label, LV_OPA_TRANSP, 0);
+        }
     }
 }
 
@@ -211,8 +256,8 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
 
     const int size = 88;
     const int gap = 8;
-    const int start_x = -136;
-    const int start_y = 82;
+    const int start_x = -140;
+    const int start_y = 72;
     const int cell = 88;
     const int step = size + gap;
 
@@ -245,7 +290,7 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
      * Jagged green neon lines form the 3x3 cage instead of nine solid fields.
      * The small zig-zags intentionally make the grid look like energized lightning.
      */
-    const int left = 44;
+    const int left = 40;
     const int top = start_y;
     const int right = left + 3 * cell + 2 * gap;
     const int bottom = top + 3 * cell + 2 * gap;
@@ -285,10 +330,11 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
                                        {left + 260, top + 2 * cell + gap + gap / 2 + 2},
                                        {right + 4, top + 2 * cell + gap + gap / 2}};
 
-    add_neon_line(screen, v1, sizeof(v1) / sizeof(v1[0]));
-    add_neon_line(screen, v2, sizeof(v2) / sizeof(v2[0]));
-    add_neon_line(screen, h1, sizeof(h1) / sizeof(h1[0]));
-    add_neon_line(screen, h2, sizeof(h2) / sizeof(h2[0]));
+    neon_lines[0] = add_neon_line(screen, v1, sizeof(v1) / sizeof(v1[0]));
+    neon_lines[1] = add_neon_line(screen, v2, sizeof(v2) / sizeof(v2[0]));
+    neon_lines[2] = add_neon_line(screen, h1, sizeof(h1) / sizeof(h1[0]));
+    neon_lines[3] = add_neon_line(screen, h2, sizeof(h2) / sizeof(h2[0]));
+    neon_timer = lv_timer_create(neon_animation_tick, 40, NULL);
 
     /*
      * The action buttons stay hidden to give the board maximum space.
@@ -322,4 +368,5 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
     lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
 
     lv_obj_add_event_cb(screen, game_gesture_cb, LV_EVENT_GESTURE, NULL);
+    lv_obj_add_event_cb(screen, neon_cleanup_cb, LV_EVENT_DELETE, NULL);
 }
