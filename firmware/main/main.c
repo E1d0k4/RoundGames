@@ -491,7 +491,7 @@ static void build_launcher(void)
     for (int i = 0; i < LAUNCHER_PAGE_COUNT; i++) {
         lv_obj_t *dot = lv_obj_create(screen);
         lv_obj_set_size(dot, i == input_get_launcher_page() ? 10 : 7,
-                        i == launcher_page ? 10 : 7);
+                        i == input_get_launcher_page() ? 10 : 7);
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_color(dot,
                                   i == input_get_launcher_page() ? lv_color_hex(0x20A050)
