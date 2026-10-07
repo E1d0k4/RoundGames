@@ -10,7 +10,7 @@
 
 static lv_obj_t *board_buttons[BOARD_SIZE][BOARD_SIZE];
 static lv_obj_t *status_label;
-static lv_obj_t *screen_obj;
+static lv_obj_t *action_panel;
 static tic_tac_toe_back_cb_t back_callback;
 
 static char board[BOARD_SIZE][BOARD_SIZE];
@@ -146,17 +146,43 @@ static void cell_cb(lv_event_t *e)
     set_status("Your turn: X", "Du bist dran: X");
 }
 
+static void hide_action_panel(void)
+{
+    if (action_panel) {
+        lv_obj_add_flag(action_panel, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static void back_button_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
+    hide_action_panel();
     if (back_callback) back_callback();
+}
+
+static void action_panel_new_game_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    hide_action_panel();
+    new_game_cb(NULL);
+}
+
+static void game_gesture_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+
+    lv_indev_t *indev = lv_indev_active();
+    if (!indev) return;
+
+    if (lv_indev_get_gesture_dir(indev) == LV_DIR_TOP && action_panel) {
+        lv_obj_clear_flag(action_panel, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
 {
     if (!screen) return;
 
-    screen_obj = screen;
     back_callback = back_cb;
     board_reset();
 
@@ -173,7 +199,7 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
     const int size = 88;
     const int gap = 8;
     const int start_x = -136;
-    const int start_y = 108;
+    const int start_y = 92;
 
     for (int row = 0; row < BOARD_SIZE; row++) {
         for (int col = 0; col < BOARD_SIZE; col++) {
@@ -196,21 +222,36 @@ void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
         }
     }
 
-    lv_obj_t *new_game = lv_button_create(screen);
-    lv_obj_set_size(new_game, 170, 52);
-    lv_obj_align(new_game, LV_ALIGN_BOTTOM_MID, 0, -62);
+    /*
+     * The action buttons stay hidden to give the board maximum space.
+     * Swipe from bottom to top to reveal them.
+     */
+    action_panel = lv_obj_create(screen);
+    lv_obj_set_size(action_panel, 320, 62);
+    lv_obj_align(action_panel, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_set_style_bg_opa(action_panel, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(action_panel, 5, LV_PART_MAIN);
+    lv_obj_set_style_border_width(action_panel, 0, LV_PART_MAIN);
+    lv_obj_add_flag(action_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(action_panel, LV_OBJ_FLAG_GESTURE_BUBBLE);
+
+    lv_obj_t *new_game = lv_button_create(action_panel);
+    lv_obj_set_size(new_game, 190, 50);
+    lv_obj_align(new_game, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_style_bg_color(new_game, lv_color_hex(0x20A050), LV_PART_MAIN);
     lv_obj_t *new_label = lv_label_create(new_game);
     lv_label_set_text(new_label, tr("New game", "Neues Spiel"));
     lv_obj_center(new_label);
-    lv_obj_add_event_cb(new_game, new_game_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(new_game, action_panel_new_game_cb, LV_EVENT_CLICKED, NULL);
 
-    lv_obj_t *back = lv_button_create(screen);
-    lv_obj_set_size(back, 90, 44);
-    lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_t *back = lv_button_create(action_panel);
+    lv_obj_set_size(back, 105, 50);
+    lv_obj_align(back, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_obj_t *back_label = lv_label_create(back);
     lv_label_set_text(back_label, LV_SYMBOL_LEFT);
     lv_obj_set_style_text_font(back_label, &lv_font_montserrat_20, 0);
     lv_obj_center(back_label);
     lv_obj_add_event_cb(back, back_button_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_add_event_cb(screen, game_gesture_cb, LV_EVENT_GESTURE, NULL);
 }
