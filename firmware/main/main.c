@@ -28,6 +28,9 @@ static int theme = 0;
 static bool sound_muted = false;
 static bool screensaver_enabled = true;
 static bool screensaver_active = false;
+static bool launcher_active = true;
+static int launcher_page = 0;
+static uint32_t favorite_games = 1u;
 
 static lv_obj_t *brightness_slider = NULL;
 static lv_obj_t *brightness_value_label = NULL;
@@ -66,6 +69,7 @@ static void save_settings(void)
     nvs_set_i32(nvs, "theme", theme);
     nvs_set_i32(nvs, "muted", sound_muted);
     nvs_set_i32(nvs, "screensaver", screensaver_enabled);
+    nvs_set_u32(nvs, "favorites", favorite_games);
     time_t now; time(&now);
     nvs_set_i64(nvs, "epoch", (int64_t)now);
     nvs_commit(nvs);
@@ -85,6 +89,8 @@ static void load_settings(void)
     if (nvs_get_i32(nvs, "theme", &value) == ESP_OK) theme = value;
     if (nvs_get_i32(nvs, "muted", &value) == ESP_OK) sound_muted = value;
     if (nvs_get_i32(nvs, "screensaver", &value) == ESP_OK) screensaver_enabled = value;
+    uint32_t favorites;
+    if (nvs_get_u32(nvs, "favorites", &favorites) == ESP_OK) favorite_games = favorites;
     int64_t epoch;
     if (nvs_get_i64(nvs, "epoch", &epoch) == ESP_OK && epoch > 1700000000) {
         struct timeval tv = { .tv_sec = (time_t)epoch, .tv_usec = 0 };
@@ -99,6 +105,7 @@ static void load_settings(void)
     if (dim_brightness > 50) dim_brightness = 50;
     if (dim_timeout < 10) dim_timeout = 10;
     if (dim_timeout > 600) dim_timeout = 600;
+    favorite_games |= 1u;
 }
 
 static void apply_theme(lv_obj_t *screen)
@@ -126,9 +133,12 @@ static void activity_reset(void)
 }
 
 static void settings_gesture_cb(lv_event_t *e);
+static void build_games_menu(void);
+static void launcher_gesture_cb(lv_event_t *e);
 
 static void clear_screen(void)
 {
+    launcher_active = false;
     activity_reset();
     lv_obj_clean(lv_scr_act());
     brightness_slider = NULL;
@@ -205,8 +215,23 @@ static void clock_adjust_cb(lv_event_t *e)
 static void settings_gesture_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    if (lv_indev_get_gesture_dir(lv_indev_active()) == LV_DIR_BOTTOM) {
-        lv_indev_wait_release(lv_indev_active()); build_settings_menu();
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
+    lv_indev_wait_release(lv_indev_active());
+
+    if (launcher_active) {
+        if (dir == LV_DIR_BOTTOM) {
+            build_settings_menu();
+        } else if (dir == LV_DIR_TOP) {
+            build_games_menu();
+        } else if (dir == LV_DIR_LEFT) {
+            launcher_page++;
+            build_launcher();
+        } else if (dir == LV_DIR_RIGHT) {
+            if (launcher_page > 0) launcher_page--;
+            build_launcher();
+        }
+    } else if (dir == LV_DIR_BOTTOM) {
+        build_settings_menu();
     }
 }
 
@@ -437,19 +462,157 @@ static void screensaver_tick(lv_timer_t *timer)
 
 static void screensaver_wake_cb(lv_event_t *e) { LV_UNUSED(e); activity_reset(); }
 
+typedef struct {
+    const char *id;
+    const char *name;
+} game_entry_t;
+
+static const game_entry_t games[] = {
+    { "Tic-Tac-Toe", "Tic-Tac-Toe" }
+};
+
+#define GAME_COUNT ((int)(sizeof(games) / sizeof(games[0])))
+#define GAMES_PER_PAGE 4
+
+static int favorite_game_count(void)
+{
+    int count = 0;
+    for (int i = 0; i < GAME_COUNT; i++) {
+        if (favorite_games & (1u << i)) count++;
+    }
+    return count;
+}
+
+static int favorite_game_at(int favorite_index)
+{
+    int seen = 0;
+    for (int i = 0; i < GAME_COUNT; i++) {
+        if (favorite_games & (1u << i)) {
+            if (seen == favorite_index) return i;
+            seen++;
+        }
+    }
+    return -1;
+}
+
 static void launcher_button_cb(lv_event_t *e)
 {
-    const char *name=(const char*)lv_event_get_user_data(e); activity_reset();
-    if(name && !strcmp(name,"Tic-Tac-Toe")) show_status("Tic-Tac-Toe",tr("Game module will be added next.","Spielmodul kommt als Nächstes."));
+    int game_index = (int)(intptr_t)lv_event_get_user_data(e);
+    activity_reset();
+    if (game_index >= 0 && game_index < GAME_COUNT &&
+        !strcmp(games[game_index].id, "Tic-Tac-Toe")) {
+        show_status("Tic-Tac-Toe",
+                    tr("Game module will be added next.",
+                       "Spielmodul kommt als Nächstes."));
+    }
+}
+
+static void favorite_toggle_cb(lv_event_t *e)
+{
+    int game_index = (int)(intptr_t)lv_event_get_user_data(e);
+    if (game_index < 0 || game_index >= GAME_COUNT) return;
+
+    favorite_games ^= (1u << game_index);
+
+    if (favorite_games == 0) {
+        favorite_games |= (1u << game_index);
+    }
+
+    launcher_page = 0;
+    save_settings();
+    build_games_menu();
+}
+
+static void build_games_menu(void)
+{
+    clear_screen();
+    lv_obj_t *screen = lv_scr_act();
+    add_title(screen, tr("Games", "Spiele"));
+
+    for (int i = 0; i < GAME_COUNT; i++) {
+        int row = i / 2;
+        int col = i % 2;
+        lv_obj_t *button = lv_button_create(screen);
+        lv_obj_set_size(button, 185, 66);
+        lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205, 75 + row * 82);
+        style_option_button(button, (favorite_games & (1u << i)) != 0);
+
+        lv_obj_t *star = lv_label_create(button);
+        lv_label_set_text(star, (favorite_games & (1u << i)) ? LV_SYMBOL_STAR : LV_SYMBOL_CLOSE);
+        lv_obj_set_style_text_font(star, &lv_font_montserrat_20, 0);
+        lv_obj_align(star, LV_ALIGN_LEFT_MID, 12, 0);
+
+        lv_obj_t *label = lv_label_create(button);
+        lv_label_set_text(label, games[i].name);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_18, 0);
+        lv_obj_align(label, LV_ALIGN_CENTER, 8, 0);
+
+        lv_obj_add_event_cb(button, favorite_toggle_cb, LV_EVENT_CLICKED,
+                            (void *)(intptr_t)i);
+    }
+
+    lv_obj_t *hint = lv_label_create(screen);
+    lv_label_set_text(hint,
+        tr("Tap a game to favorite it",
+           "Tippe auf ein Spiel, um es zu favorisieren"));
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_16, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -55);
+
+    add_back_button(screen, true);
 }
 
 static void build_launcher(void)
 {
-    clear_screen(); lv_obj_t *screen=lv_scr_act(); add_title(screen,"RoundGames");
-    lv_obj_t *subtitle=lv_label_create(screen); lv_label_set_text(subtitle,tr("Phase 3 - system settings","Phase 3 - Systemeinstellungen")); lv_obj_set_style_text_font(subtitle,&lv_font_montserrat_16,0); lv_obj_align(subtitle,LV_ALIGN_TOP_MID,0,70);
-    lv_obj_t *game=lv_button_create(screen); lv_obj_set_size(game,300,78); lv_obj_align(game,LV_ALIGN_CENTER,0,-35);
-    lv_obj_t *game_label=lv_label_create(game); lv_label_set_text(game_label,"Tic-Tac-Toe"); lv_obj_set_style_text_font(game_label,&lv_font_montserrat_22,0); lv_obj_center(game_label); lv_obj_add_event_cb(game,launcher_button_cb,LV_EVENT_CLICKED,(void*)"Tic-Tac-Toe");
-    lv_obj_t *hint=lv_label_create(screen); lv_label_set_text(hint,tr("Swipe down for settings","Nach unten wischen für Einstellungen")); lv_obj_set_style_text_font(hint,&lv_font_montserrat_16,0); lv_obj_align(hint,LV_ALIGN_BOTTOM_MID,0,-35);
+    clear_screen();
+    launcher_active = true;
+
+    lv_obj_t *screen = lv_scr_act();
+
+    int favorite_count = favorite_game_count();
+    int page_count = (favorite_count + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE;
+    if (page_count < 1) page_count = 1;
+    if (launcher_page >= page_count) launcher_page = page_count - 1;
+
+    int start = launcher_page * GAMES_PER_PAGE;
+
+    for (int slot = 0; slot < GAMES_PER_PAGE; slot++) {
+        int favorite_index = start + slot;
+        int game_index = favorite_game_at(favorite_index);
+        int col = slot % 2;
+        int row = slot / 2;
+
+        lv_obj_t *button = lv_button_create(screen);
+        lv_obj_set_size(button, 185, 120);
+        lv_obj_align(button, LV_ALIGN_TOP_LEFT, 38 + col * 205,
+                     82 + row * 145);
+
+        if (game_index >= 0) {
+            style_option_button(button, false);
+            lv_obj_t *label = lv_label_create(button);
+            lv_label_set_text(label, games[game_index].name);
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+            lv_obj_center(label);
+            lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
+                                (void *)(intptr_t)game_index);
+        } else {
+            style_option_button(button, false);
+            lv_obj_add_state(button, LV_STATE_DISABLED);
+        }
+    }
+
+    if (page_count > 1) {
+        for (int i = 0; i < page_count; i++) {
+            lv_obj_t *dot = lv_label_create(screen);
+            lv_label_set_text(dot, i == launcher_page ? LV_SYMBOL_CIRCLE : LV_SYMBOL_BULLET);
+            lv_obj_set_style_text_font(dot, &lv_font_montserrat_14, 0);
+            lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, (i - (page_count - 1) / 2) * 18, -18);
+        }
+    } else {
+        lv_obj_t *dot = lv_label_create(screen);
+        lv_label_set_text(dot, LV_SYMBOL_CIRCLE);
+        lv_obj_set_style_text_font(dot, &lv_font_montserrat_14, 0);
+        lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, 0, -18);
+    }
 }
 
 static void show_status(const char *title,const char *message)
