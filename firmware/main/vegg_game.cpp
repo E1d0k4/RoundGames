@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "nvs.h"
 #include "esp_heap_caps.h"
@@ -44,6 +45,7 @@ static void (*exit_callback)(void) = NULL;
 
 static lv_obj_t *world = NULL;
 static uint16_t *world_pixels = NULL;
+static uint16_t *world_base_pixels = NULL;
 static lv_image_dsc_t world_dsc = {};
 static constexpr int WORLD_W=466, WORLD_H=466;
 static constexpr float WORLD_CX=233.0f, WORLD_R=699.0f, WORLD_G=298.0f;
@@ -109,13 +111,22 @@ static void world_eevee(){
     const uint8_t*srcs[]={VEGG_EEVEE_RUN0,VEGG_EEVEE_RUN1,VEGG_EEVEE_RUN2};uint16_t w=ws[fr],h=hs[fr];WorldFrame f=frame_at(runner_x,-jump_h,3);float ox=(w-1)*.5f;
     for(uint16_t sy=0;sy<h;++sy)for(uint16_t sx=0;sx<w;++sx){uint16_t p=sy*w+sx;uint8_t q=srcs[fr][p>>1],pi=(p&1)?(q&15):(q>>4);if(!pi)continue;int x,y;world_point(f,(w-1-sx)-ox,(h-1-sy),x,y);fill_rect(x,y,3,3,VEGG_EEVEE_PALETTE[pi]);}
 }
-static void render_world(){
-    const uint8_t a[3]={110,185,235},b[3]={210,238,225};int hh=(int)(WORLD_G+40);
+static void render_base(){
+    const uint8_t a[3]={110,185,235},b[3]={210,238,225};
+    int hh=(int)(WORLD_G+40);
     for(int i=0;i<10;++i){float u=(float)i/9;fill_rect(0,hh*i/10,WORLD_W,hh/10+1,rgb((uint8_t)(a[0]+(b[0]-a[0])*u),(uint8_t)(a[1]+(b[1]-a[1])*u),(uint8_t)(a[2]+(b[2]-a[2])*u)));}
-    world_band(26,rgb(78,138,112),rgb(95,155,128),0);world_layer(.35f,46,26,.45f,.70f,20,rgb(80,100,95),rgb(70,130,110),rgb(95,158,132),0x1111);
-    world_band(13,rgb(58,122,82),rgb(78,145,95),0);world_layer(.65f,62,13,.65f,.95f,22,rgb(92,64,44),rgb(40,108,68),rgb(62,138,88),0x2222);
-    world_band(0,rgb(70,150,60),rgb(105,190,72),rgb(112,82,52));world_layer(1,120,0,.95f,1.30f,40,rgb(108,68,40),rgb(40,125,55),rgb(72,162,72),0x3333);
-    uint16_t gr=rgb(70,150,70);for(int x=5;x<WORLD_W;x+=38){int y=(int)lroundf(ground_y(x));draw_line(x,y,x-4,y-10,gr);draw_line(x+4,y,x+7,y-13,gr);draw_line(x+8,y,x+12,y-8,gr);}
+    world_band(26,rgb(78,138,112),rgb(95,155,128),0);
+    world_band(13,rgb(58,122,82),rgb(78,145,95),0);
+    world_band(0,rgb(70,150,60),rgb(105,190,72),rgb(112,82,52));
+    uint16_t gr=rgb(70,150,70);
+    for(int x=5;x<WORLD_W;x+=38){int y=(int)lroundf(ground_y(x));draw_line(x,y,x-4,y-10,gr);draw_line(x+4,y,x+7,y-13,gr);draw_line(x+8,y,x+12,y-8,gr);}
+}
+static void render_world(){
+    if(!world_pixels || !world_base_pixels) return;
+    memcpy(world_pixels,world_base_pixels,WORLD_W*WORLD_H*sizeof(uint16_t));
+    world_layer(.35f,46,26,.45f,.70f,20,rgb(80,100,95),rgb(70,130,110),rgb(95,158,132),0x1111);
+    world_layer(.65f,62,13,.65f,.95f,22,rgb(92,64,44),rgb(40,108,68),rgb(62,138,88),0x2222);
+    world_layer(1,120,0,.95f,1.30f,40,rgb(108,68,40),rgb(40,125,55),rgb(72,162,72),0x3333);
     int cloud=(int)((lv_tick_get()/45)%560)-60;uint16_t cc=rgb(250,252,246);fill_circle(cloud,82,11,cc);fill_circle(cloud+16,85,9,cc);fill_circle(cloud-13,87,8,cc);
     for(int i=0;i<4;++i)if(obstacles[i].active)(obstacles[i].branch?world_branch:world_bush)(obstacles[i].x);
     world_eevee(); if(world)lv_obj_invalidate(world);
@@ -400,15 +411,23 @@ static void tick(lv_timer_t *t)
 
 static void build_scene(void)
 {
-    world_pixels=(uint16_t*)heap_caps_malloc(WORLD_W*WORLD_H*2,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
-    if(!world_pixels) world_pixels=(uint16_t*)heap_caps_malloc(WORLD_W*WORLD_H*2,MALLOC_CAP_8BIT);
-    if(!world_pixels){ active=false; return; }
+    const size_t world_bytes = WORLD_W*WORLD_H*sizeof(uint16_t);
+    world_pixels=(uint16_t*)heap_caps_malloc(world_bytes,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+    world_base_pixels=(uint16_t*)heap_caps_malloc(world_bytes,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+    if(!world_pixels) world_pixels=(uint16_t*)heap_caps_malloc(world_bytes,MALLOC_CAP_8BIT);
+    if(!world_base_pixels) world_base_pixels=(uint16_t*)heap_caps_malloc(world_bytes,MALLOC_CAP_8BIT);
+    if(!world_pixels || !world_base_pixels){
+        if(world_pixels) heap_caps_free(world_pixels);
+        if(world_base_pixels) heap_caps_free(world_base_pixels);
+        world_pixels=NULL; world_base_pixels=NULL; active=false; return;
+    }
 
     world=lv_image_create(screen);
     lv_obj_set_size(world,WORLD_W,WORLD_H);
     lv_obj_set_pos(world,0,0);
     lv_obj_clear_flag(world,LV_OBJ_FLAG_CLICKABLE);
     update_world_image();
+    render_base();
     render_world();
 
     score_label=lv_label_create(screen);
@@ -507,6 +526,10 @@ void vegg_stop(void)
     if (world_pixels) {
         heap_caps_free(world_pixels);
         world_pixels = NULL;
+    }
+    if (world_base_pixels) {
+        heap_caps_free(world_base_pixels);
+        world_base_pixels = NULL;
     }
 
     world = NULL;
