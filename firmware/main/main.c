@@ -19,6 +19,7 @@
 #include "screensaver.h"
 #include "settings_ui.h"
 #include "tic_tac_toe.h"
+#include "snake.h"
 
 static const char *TAG = "roundgames";
 
@@ -483,7 +484,11 @@ static void launcher_game_action(int game_index, const char *name)
 
     if (game_index == 0) {
         clear_screen();
+        input_set_game_gesture_callback(NULL);
         tic_tac_toe_open(lv_scr_act());
+    } else if (game_index == 1) {
+        clear_screen();
+        snake_open(lv_scr_act());
     } else {
         char msg[64];
         snprintf(msg, sizeof(msg), "%s\n%s",
