@@ -38,6 +38,7 @@
 
 #include "tic_tac_toe.h"
 #include "language.h"
+#include "theme.h"
 #include "lvgl.h"
 
 #include "esp_random.h"
@@ -312,6 +313,10 @@ lv_obj_set_style_bg_color(scr, COL_BG, 0);
 lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
 
 lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+
+/* Aurora/Pulse are normal UI backgrounds. Recreate them after clearing
+ * the game screen so the animation timer never keeps dangling objects. */
+if (theme_get() == 2 || theme_get() == 3) theme_apply(scr);
 
 }
 
