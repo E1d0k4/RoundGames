@@ -11,7 +11,7 @@ static launcher_game_cb_t game_action = NULL;
 
 static const char *game_names[] = {
     "Tic-Tac-Toe",
-    "App 2",
+    "Snake",
     "App 3",
     "App 4",
     "App 5",
@@ -72,6 +72,9 @@ void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
         if (game_index == 0) {
             lv_label_set_text(icon, "X   O");
             lv_obj_set_style_text_color(icon, lv_color_hex(0x35E0FF), 0);
+        } else if (game_index == 1) {
+            lv_label_set_text(icon, "S");
+            lv_obj_set_style_text_color(icon, lv_color_hex(0x00C850), 0);
         } else {
             lv_label_set_text(icon, LV_SYMBOL_PLAY);
             lv_obj_set_style_text_color(icon, lv_color_hex(0x7C5CFF), 0);
