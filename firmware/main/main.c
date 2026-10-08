@@ -449,7 +449,7 @@ static void launcher_game_action(int game_index, const char *name)
 
     if (game_index == 0) {
         clear_screen();
-        tic_tac_toe_open(lv_scr_act(), tic_tac_toe_back);
+        tic_tac_toe_open(lv_scr_act());
     } else {
         char msg[64];
         snprintf(msg, sizeof(msg), "%s\n%s",
