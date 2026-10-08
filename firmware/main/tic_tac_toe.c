@@ -134,7 +134,6 @@ static lv_obj_t   *s_status, *s_scorelbl, *s_level_row;
 
 static lv_timer_t *s_ai_timer, *s_round_timer;
 static lv_obj_t *s_screen;
-static tic_tac_toe_back_cb_t s_back_callback;
 
 static void menu_create(void);
 
@@ -827,9 +826,8 @@ schedule_ai();
 
 /* ------------------------------------------------------------------ */
 
-void tic_tac_toe_open(lv_obj_t *screen, tic_tac_toe_back_cb_t back_cb)
+void tic_tac_toe_open(lv_obj_t *screen)
 {
     s_screen = screen;
-    s_back_callback = back_cb;
     menu_create();
 }
