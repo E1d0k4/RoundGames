@@ -118,17 +118,14 @@ void screensaver_tick(lv_timer_t *timer)
     lv_obj_t *screen = lv_scr_act();
     screen_saver = lv_obj_create(screen);
     lv_obj_set_size(screen_saver, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_color(screen_saver,
-                              lv_color_hex(theme_get() == 2 ? 0x07151A :
-                                           theme_get() == 3 ? 0x120914 : 0x000000), 0);
+    /* Aurora/Pulse are normal UI backgrounds, not screensavers. */
+    lv_obj_set_style_bg_color(screen_saver, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(screen_saver, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(screen_saver, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_add_flag(screen_saver, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
-
-    theme_apply(screen_saver);
 
     screensaver_clock = lv_label_create(screen_saver);
     char buf[32];
