@@ -53,6 +53,7 @@ static void build_theme_page(void);
 static void theme_cb(lv_event_t *e);
 static void build_info_page(void);
 static void show_status(const char *title, const char *message);
+static void gesture_game_back_cb(void);
 
 static const char *tr(const char *en, const char *de) { return language_tr(en, de); }
 
