@@ -29,6 +29,7 @@ static int dim_timeout = 30;
 
 static bool sound_muted = false;
 static uint32_t favorite_games = 1u;
+static bool settings_return_to_game = false;
 
 static lv_obj_t *brightness_slider = NULL;
 static lv_obj_t *brightness_value_label = NULL;
@@ -131,6 +132,19 @@ static void clear_screen(void)
 }
 
 static void back_button_cb(lv_event_t *e) { LV_UNUSED(e); activity_reset(); build_settings_menu(); }
+static void settings_menu_back_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    activity_reset();
+    if (settings_return_to_game) {
+        settings_return_to_game = false;
+        tic_tac_toe_resume_from_settings();
+    } else {
+        input_set_game_state(false, NULL);
+        screensaver_set_game_active(false);
+        build_launcher();
+    }
+}
 static void generic_back_launcher_cb(lv_event_t *e) { LV_UNUSED(e); input_set_game_state(false, NULL); screensaver_set_game_active(false); activity_reset(); build_launcher(); }
 
 static void set_brightness(int value)
@@ -220,6 +234,10 @@ static void launcher_async_cb(void *user_data)
 
 static void gesture_bottom_cb(void)
 {
+    if (input_is_game_active()) {
+        tic_tac_toe_prepare_settings();
+        settings_return_to_game = true;
+    }
     /* Defer screen rebuild until the current gesture event has finished. */
     lv_async_call(settings_async_cb, NULL);
 }
@@ -320,7 +338,14 @@ static void build_settings_menu(void)
         }
         lv_obj_add_event_cb(button,settings_menu_cb,LV_EVENT_CLICKED,(void*)names[i]);
     }
-    add_back_button(screen,true);
+    lv_obj_t *back = lv_button_create(screen);
+    lv_obj_set_size(back, 90, 44);
+    lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_t *icon = lv_label_create(back);
+    lv_label_set_text(icon, LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+    lv_obj_center(icon);
+    lv_obj_add_event_cb(back, settings_menu_back_cb, LV_EVENT_CLICKED, NULL);
 }
 
 static void build_brightness_page(void)
