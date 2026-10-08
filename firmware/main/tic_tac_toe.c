@@ -843,6 +843,12 @@ void tic_tac_toe_prepare_settings(void)
     kill_timers();
 }
 
+void tic_tac_toe_stop(void)
+{
+    kill_timers();
+    s_in_game = false;
+}
+
 void tic_tac_toe_resume_from_settings(void)
 {
     if (s_in_game) game_create();
