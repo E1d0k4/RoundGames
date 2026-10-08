@@ -20,6 +20,7 @@ void screensaver_init(void)
 {
     enabled = true;
     active = false;
+    game_active = false;
     inactivity_seconds = 0;
     idle_ticks = 0;
     screen_saver = NULL;
