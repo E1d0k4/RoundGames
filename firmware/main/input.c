@@ -102,3 +102,8 @@ void input_set_activity_callback(input_action_cb_t callback)
 {
     activity_callback = callback;
 }
+
+bool input_is_game_active(void)
+{
+    return game_active;
+}
