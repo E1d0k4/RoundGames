@@ -19,8 +19,6 @@ void theme_apply(lv_obj_t *screen)
 {
     if (!screen) return;
     for (int i = 0; i < 6; i++) theme_effects[i] = NULL;
-    theme_phase = 0;
-
     if (theme == 0) {
         lv_obj_set_style_bg_color(screen, lv_color_hex(0x101014), 0);
         lv_obj_set_style_text_color(screen, lv_color_hex(0xFFFFFF), 0);
