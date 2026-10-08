@@ -342,7 +342,7 @@ static void build_scene(void)
     lv_obj_remove_style_all(grass);
     lv_obj_set_style_bg_color(grass, GROUND_DARK, 0);
     lv_obj_set_style_radius(grass, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_size(650, 240);
+    lv_obj_set_size(grass, 650, 240);
     lv_obj_set_pos(grass, -92, 300);
     lv_obj_clear_flag(grass, LV_OBJ_FLAG_CLICKABLE);
 
