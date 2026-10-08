@@ -124,6 +124,7 @@ void screensaver_tick(lv_timer_t *timer)
     lv_obj_set_style_bg_opa(screen_saver, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(screen_saver, 0, 0);
     lv_obj_clear_flag(screen_saver, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(screen_saver, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_add_flag(screen_saver, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(screen_saver, screensaver_wake_cb, LV_EVENT_CLICKED, NULL);
 
