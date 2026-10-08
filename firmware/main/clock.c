@@ -1,6 +1,13 @@
 #include "clock.h"
 
 #include <sys/time.h>
+#include <stdlib.h>
+
+void clock_init(void)
+{
+    setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1);
+    tzset();
+}
 
 time_t clock_now(void)
 {
