@@ -496,6 +496,7 @@ void app_main(void)
     esp_err_t nvs_ret=nvs_flash_init();
     if(nvs_ret==ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret==ESP_ERR_NVS_NEW_VERSION_FOUND){nvs_flash_erase();nvs_flash_init();}
     screensaver_init();
+    clock_init();
     input_init();
     input_set_actions(gesture_bottom_cb, gesture_left_cb, gesture_right_cb);
     input_set_activity_callback(activity_reset);
