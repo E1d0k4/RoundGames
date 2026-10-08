@@ -279,6 +279,14 @@ static void gesture_right_cb(void)
 
 static void gesture_game_back_cb(void)
 {
+    /* Stop game timers before scheduling the launcher rebuild. This makes
+     * the physical PWR exit feel immediate instead of waiting for the
+     * game's next timer tick. */
+    tic_tac_toe_stop();
+    snake_stop();
+    input_set_game_state(false, NULL);
+    screensaver_set_game_active(false);
+    activity_reset();
     lv_async_call(launcher_async_cb, NULL);
 }
 
