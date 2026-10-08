@@ -94,21 +94,46 @@ static void create_runner_image(void)
     lv_image_set_src(runner, NULL);
 }
 
+static uint32_t runner_pixels[25 * 20];
+
+static uint32_t rgb565_to_argb8888(uint16_t c)
+{
+    const uint32_t r = ((c >> 11) & 0x1F) * 255u / 31u;
+    const uint32_t g = ((c >> 5) & 0x3F) * 255u / 63u;
+    const uint32_t b = (c & 0x1F) * 255u / 31u;
+    return 0xFF000000u | (r << 16) | (g << 8) | b;
+}
+
 static const lv_image_dsc_t make_image_dsc(uint8_t frame)
 {
+    const uint16_t w = VEGG_EEVEE_W[frame];
+    const uint16_t h = VEGG_EEVEE_H[frame];
+    const uint8_t *src = NULL;
+
+    switch (frame) {
+        case 0: src = VEGG_EEVEE_RUN0; break;
+        case 1: src = VEGG_EEVEE_RUN1; break;
+        default: src = VEGG_EEVEE_RUN2; break;
+    }
+
+    for (uint16_t y = 0; y < h; ++y) {
+        for (uint16_t x = 0; x < w; ++x) {
+            const uint16_t p = y * w + x;
+            const uint8_t packed = src[p >> 1];
+            const uint8_t pi = (p & 1u) ? (packed & 0x0Fu) : (packed >> 4);
+            runner_pixels[p] = (pi == 0) ? 0x00000000u
+                                         : rgb565_to_argb8888(VEGG_EEVEE_PALETTE[pi]);
+        }
+    }
+
     lv_image_dsc_t dsc = {};
     dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
     dsc.header.cf = LV_COLOR_FORMAT_ARGB8888;
-    dsc.header.w = VEGG_EEVEE_W[frame];
-    dsc.header.h = VEGG_EEVEE_H[frame];
-    dsc.header.stride = VEGG_EEVEE_W[frame] * 4;
-
-    switch (frame) {
-        case 0: dsc.data = VEGG_EEVEE_0; break;
-        case 1: dsc.data = VEGG_EEVEE_1; break;
-        default: dsc.data = VEGG_EEVEE_2; break;
-    }
-    dsc.data_size = dsc.header.stride * dsc.header.h;
+    dsc.header.w = w;
+    dsc.header.h = h;
+    dsc.header.stride = w * 4;
+    dsc.data = runner_pixels;
+    dsc.data_size = dsc.header.stride * h;
     return dsc;
 }
 
