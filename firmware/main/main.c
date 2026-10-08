@@ -316,8 +316,8 @@ static void build_settings_menu(void)
     add_title(screen, tr("Settings", "Einstellungen"));
 
     static const char *symbols[] = {
-        LV_SYMBOL_SETTINGS, LV_SYMBOL_VOLUME_MAX,
-        "A>A", LV_SYMBOL_REFRESH,
+        LV_SYMBOL_EYE_OPEN, LV_SYMBOL_VOLUME_MAX,
+        "A<->A", NULL,
         LV_SYMBOL_IMAGE, "i"
     };
     static const char *names[] = {
@@ -330,6 +330,23 @@ static void build_settings_menu(void)
 
         if (i == 2) {
             add_language_icon(button);
+        } else if (i == 3) {
+            lv_obj_t *clock_icon = lv_obj_create(button);
+            lv_obj_set_size(clock_icon, 34, 34);
+            lv_obj_set_style_radius(clock_icon, 17, 0);
+            lv_obj_set_style_bg_opa(clock_icon, LV_OPA_TRANSP, 0);
+            lv_obj_set_style_border_width(clock_icon, 2, 0);
+            lv_obj_set_style_border_color(clock_icon, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_clear_flag(clock_icon, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_center(clock_icon);
+            lv_obj_t *hour = lv_label_create(clock_icon);
+            lv_label_set_text(hour, "|");
+            lv_obj_set_style_text_font(hour, &lv_font_montserrat_14, 0);
+            lv_obj_align(hour, LV_ALIGN_CENTER, 0, -5);
+            lv_obj_t *minute = lv_label_create(clock_icon);
+            lv_label_set_text(minute, "_");
+            lv_obj_set_style_text_font(minute, &lv_font_montserrat_14, 0);
+            lv_obj_align(minute, LV_ALIGN_CENTER, 5, 2);
         } else {
             lv_obj_t *icon=lv_label_create(button);
             lv_label_set_text(icon,symbols[i]);
