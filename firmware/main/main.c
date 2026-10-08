@@ -432,14 +432,6 @@ static void build_info_page(void)
 }
 
 
-static void tic_tac_toe_back(void)
-{
-    input_set_game_state(false, NULL);
-    screensaver_set_game_active(false);
-    activity_reset();
-    build_launcher();
-}
-
 static void launcher_game_action(int game_index, const char *name)
 {
     LV_UNUSED(name);
