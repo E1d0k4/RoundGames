@@ -17,7 +17,6 @@ enum VeggState {
 };
 
 static lv_obj_t *screen = NULL;
-static lv_obj_t *runner = NULL;
 static lv_obj_t *score_label = NULL;
 static lv_obj_t *best_label = NULL;
 static lv_obj_t *game_over_panel = NULL;
@@ -173,62 +172,6 @@ static void update_labels(void)
 }
 
 
-
-static uint32_t runner_pixels[25 * 20];
-
-static uint32_t rgb565_to_argb8888(uint16_t c)
-{
-    const uint32_t r = ((c >> 11) & 0x1F) * 255u / 31u;
-    const uint32_t g = ((c >> 5) & 0x3F) * 255u / 63u;
-    const uint32_t b = (c & 0x1F) * 255u / 31u;
-    return 0xFF000000u | (r << 16) | (g << 8) | b;
-}
-
-static const lv_image_dsc_t make_image_dsc(uint8_t frame)
-{
-    const uint16_t w = frame == 0 ? VEGG_EEVEE_RUN0_W : (frame == 1 ? VEGG_EEVEE_RUN1_W : VEGG_EEVEE_RUN2_W);
-    const uint16_t h = frame == 0 ? VEGG_EEVEE_RUN0_H : (frame == 1 ? VEGG_EEVEE_RUN1_H : VEGG_EEVEE_RUN2_H);
-    const uint8_t *src = NULL;
-
-    switch (frame) {
-        case 0: src = VEGG_EEVEE_RUN0; break;
-        case 1: src = VEGG_EEVEE_RUN1; break;
-        default: src = VEGG_EEVEE_RUN2; break;
-    }
-
-    for (uint16_t y = 0; y < h; ++y) {
-        for (uint16_t x = 0; x < w; ++x) {
-            const uint16_t p = y * w + x;
-            const uint8_t packed = src[p >> 1];
-            const uint8_t pi = (p & 1u) ? (packed & 0x0Fu) : (packed >> 4);
-            runner_pixels[p] = (pi == 0) ? 0x00000000u
-                                         : rgb565_to_argb8888(VEGG_EEVEE_PALETTE[pi]);
-        }
-    }
-
-    lv_image_dsc_t dsc = {};
-    dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-    dsc.header.cf = LV_COLOR_FORMAT_ARGB8888;
-    dsc.header.w = w;
-    dsc.header.h = h;
-    dsc.header.stride = w * 4;
-    dsc.data = reinterpret_cast<const uint8_t *>(runner_pixels);
-    dsc.data_size = dsc.header.stride * h;
-    return dsc;
-}
-
-static void set_runner_frame(uint8_t frame)
-{
-    if (!runner) return;
-
-    static lv_image_dsc_t dsc;
-    dsc = make_image_dsc(frame);
-    lv_image_set_src(runner, &dsc);
-    lv_obj_set_size(runner, dsc.header.w * 3, dsc.header.h * 3);
-    lv_obj_set_pos(runner,
-                   (int)runner_x - (int)(dsc.header.w * 3 / 2),
-                   304 - (int)jump_h - (int)(dsc.header.h * 3));
-}
 
 static void clear_obstacle(int i)
 {
@@ -400,11 +343,6 @@ static void tick(lv_timer_t *t)
 
     if (collision()) finish_run();
 
-    const uint8_t frame = jump_h > 0.5f
-        ? 0
-        : (uint8_t)((uint32_t)(run_time * 10.0f) % VEGG_EEVEE_RUN_FRAMES);
-
-    set_runner_frame(frame);
     render_world();
     update_labels();
 }
@@ -533,7 +471,6 @@ void vegg_stop(void)
     }
 
     world = NULL;
-    runner = NULL;
     score_label = NULL;
     best_label = NULL;
     game_over_panel = NULL;
