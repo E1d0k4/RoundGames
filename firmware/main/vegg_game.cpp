@@ -41,308 +41,83 @@ static uint32_t game_over_at = 0;
 static uint32_t rng_state = 2463534242u;
 static void (*exit_callback)(void) = NULL;
 
-static const lv_color_t SKY = LV_COLOR_MAKE(150, 210, 235);
-static const lv_color_t SKY2 = LV_COLOR_MAKE(205, 235, 220);
-static const lv_color_t GROUND = LV_COLOR_MAKE(70, 150, 60);
-static const lv_color_t GROUND_DARK = LV_COLOR_MAKE(45, 110, 55);
-static const lv_color_t BUSH = LV_COLOR_MAKE(30, 110, 50);
-static const lv_color_t BRANCH = LV_COLOR_MAKE(105, 66, 38);
+static lv_obj_t *world = NULL;
+static uint16_t *world_pixels = NULL;
+static lv_image_dsc_t world_dsc = {};
+static constexpr int WORLD_W=466, WORLD_H=466;
+static constexpr float WORLD_CX=233.0f, WORLD_R=699.0f, WORLD_G=298.0f;
 
-static uint32_t rnd(void)
-{
-    rng_state ^= rng_state << 13;
-    rng_state ^= rng_state >> 17;
-    rng_state ^= rng_state << 5;
-    return rng_state;
+static inline uint16_t rgb(uint8_t r,uint8_t g,uint8_t b){return (uint16_t)(((r&0xF8)<<8)|((g&0xFC)<<3)|(b>>3));}
+static inline void px(int x,int y,uint16_t c){if(world_pixels&&x>=0&&x<WORLD_W&&y>=0&&y<WORLD_H)world_pixels[y*WORLD_W+x]=c;}
+static void fill_rect(int x,int y,int w,int h,uint16_t c){
+    if(!world_pixels)return; int x0=x<0?0:x,y0=y<0?0:y,x1=x+w>WORLD_W?WORLD_W:x+w,y1=y+h>WORLD_H?WORLD_H:y+h;
+    for(int yy=y0;yy<y1;++yy)for(int xx=x0;xx<x1;++xx)world_pixels[yy*WORLD_W+xx]=c;
 }
-
-static float frand(void)
-{
-    return (float)(rnd() & 0xFFFFu) / 65535.0f;
+static void fill_circle(int cx,int cy,int r,uint16_t c){
+    if(r<1)r=1; for(int y=-r;y<=r;++y){int xx=(int)sqrtf((float)(r*r-y*y));fill_rect(cx-xx,cy+y,xx*2+1,1,c);}
 }
-
-static void nvs_load_best(void)
-{
-    nvs_handle_t nvs;
-    best = 0;
-    if (nvs_open("vegg", NVS_READONLY, &nvs) == ESP_OK) {
-        nvs_get_u32(nvs, "best", &best);
-        nvs_close(nvs);
+static void draw_line(int x0,int y0,int x1,int y1,uint16_t c){
+    int dx=abs(x1-x0),sx=x0<x1?1:-1,dy=-abs(y1-y0),sy=y0<y1?1:-1,err=dx+dy;
+    for(;;){px(x0,y0,c);if(x0==x1&&y0==y1)break;int e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}}
+}
+static float edgef(float ax,float ay,float bx,float by,float x,float y){return (x-ax)*(by-ay)-(y-ay)*(bx-ax);}
+static void fill_triangle(int x0,int y0,int x1,int y1,int x2,int y2,uint16_t c){
+    int minx=(int)fmaxf(0,floorf(fminf((float)x0,fminf((float)x1,(float)x2)))),maxx=(int)fminf(WORLD_W-1,ceilf(fmaxf((float)x0,fmaxf((float)x1,(float)x2))));
+    int miny=(int)fmaxf(0,floorf(fminf((float)y0,fminf((float)y1,(float)y2)))),maxy=(int)fminf(WORLD_H-1,ceilf(fmaxf((float)y0,fmaxf((float)y1,(float)y2))));
+    float area=edgef(x0,y0,x1,y1,x2,y2); if(fabsf(area)<.01f)return;
+    for(int y=miny;y<=maxy;++y)for(int x=minx;x<=maxx;++x){
+        float a=edgef(x1,y1,x2,y2,x,y),b=edgef(x2,y2,x0,y0,x,y),d=edgef(x0,y0,x1,y1,x,y);
+        if((a>=0&&b>=0&&d>=0)||(a<=0&&b<=0&&d<=0))px(x,y,c);
     }
 }
-
-static void nvs_save_best(void)
-{
-    nvs_handle_t nvs;
-    if (nvs_open("vegg", NVS_READWRITE, &nvs) == ESP_OK) {
-        nvs_set_u32(nvs, "best", best);
-        nvs_commit(nvs);
-        nvs_close(nvs);
-    }
+struct WorldFrame{float bx,by,c,s,k;};
+static float ground_y(float x){float d=x-WORLD_CX;return WORLD_G+d*d/(2*WORLD_R);}
+static WorldFrame frame_at(float x,float yoff,float k){float d=x-WORLD_CX,n=sqrtf(WORLD_R*WORLD_R+d*d);return {x,ground_y(x)+yoff,WORLD_R/n,d/n,k};}
+static void world_point(const WorldFrame&f,float lx,float ly,int&ox,int&oy){ox=(int)lroundf(f.bx+(lx*f.c+ly*f.s)*f.k);oy=(int)lroundf(f.by+(lx*f.s-ly*f.c)*f.k);}
+static void world_tri(const WorldFrame&f,float x0,float y0,float x1,float y1,float x2,float y2,uint16_t c){int ax,ay,bx,by,cx,cy;world_point(f,x0,y0,ax,ay);world_point(f,x1,y1,bx,by);world_point(f,x2,y2,cx,cy);fill_triangle(ax,ay,bx,by,cx,cy,c);}
+static void world_quad(const WorldFrame&f,float a,float b,float c,float d,float e,float g,float h,float i,uint16_t col){world_tri(f,a,b,c,d,e,g,col);world_tri(f,a,b,e,g,h,i,col);}
+static void world_circle(const WorldFrame&f,float x,float y,float r,uint16_t c){int a,b;world_point(f,x,y,a,b);fill_circle(a,b,(int)lroundf(r*f.k),c);}
+static uint32_t hash32(uint32_t x){x^=x>>16;x*=0x7feb352d;x^=x>>15;x*=0x846ca68b;x^=x>>16;return x;}
+static void world_tree(float x,float base,float t,uint8_t kind,uint16_t tr,uint16_t c1,uint16_t c2){
+    WorldFrame f=frame_at(x,-base,t);
+    if(kind==0){float th=60,w=13,r=34;world_quad(f,-w/2,-6,w/2,-6,w*.35f,th,-w*.35f,th,tr);world_circle(f,-r*.8f,th+r*.1f,r*.75f,c1);world_circle(f,r*.8f,th+r*.1f,r*.75f,c1);world_circle(f,0,th+r*.6f,r,c1);world_circle(f,-r*.25f,th+r*.95f,r*.55f,c2);}
+    else{float w=10;world_quad(f,-w/2,-6,w/2,-6,w*.4f,45,-w*.4f,45,tr);world_tri(f,-36,28,36,28,0,82,c1);world_tri(f,-29,58,29,58,0,112,c1);world_tri(f,-21,88,21,88,0,138,c2);}
 }
-
-static void update_labels(void)
-{
-    if (!score_label) return;
-    lv_label_set_text_fmt(score_label, "SCORE  %04lu", (unsigned long)score);
-    lv_label_set_text_fmt(best_label, "BEST  %04lu", (unsigned long)best);
+static void world_layer(float factor,float cell,float base,float tmin,float tmax,int skip,uint16_t tr,uint16_t c1,uint16_t c2,uint32_t seed){
+    float off=distance_run*factor;int i0=(int)floorf((off-120)/cell),i1=(int)floorf((off+WORLD_W+120)/cell);
+    for(int i=i0;i<=i1;++i){uint32_t h=hash32((uint32_t)i*0x9E3779B1u+seed);if((int)(h%100)<skip)continue;float wx=i*cell+((h>>8)&255)/255.0f*cell*.9f;float t=tmin+((h>>16)&255)/255.0f*(tmax-tmin);world_tree(wx-off,base,t,((h>>24)&3)==0?1:0,tr,c1,c2);}
 }
-
-static void create_runner_image(void)
-{
-    if (!runner) return;
-    lv_image_set_src(runner, NULL);
+static void world_band(float up,uint16_t col,uint16_t grass,uint16_t soil){
+    for(int x=0;x<WORLD_W;x+=4){int y=(int)lroundf(ground_y(x+2)-up);if(y<0)y=0;if(y>=WORLD_H)continue;fill_rect(x,y,4,WORLD_H-y,col);fill_rect(x,y,4,5,grass);if(soil){int sy=y+26;if(sy<WORLD_H)fill_rect(x,sy,4,WORLD_H-sy,soil);}}
 }
-
-static uint32_t runner_pixels[25 * 20];
-
-static uint32_t rgb565_to_argb8888(uint16_t c)
-{
-    const uint32_t r = ((c >> 11) & 0x1F) * 255u / 31u;
-    const uint32_t g = ((c >> 5) & 0x3F) * 255u / 63u;
-    const uint32_t b = (c & 0x1F) * 255u / 31u;
-    return 0xFF000000u | (r << 16) | (g << 8) | b;
+static void world_bush(float x){
+    WorldFrame f=frame_at(x,2,1);uint16_t dk=rgb(35,105,50),md=rgb(55,145,65),red=rgb(225,40,65),br=rgb(105,66,38);
+    world_circle(f,-14,10,13,dk);world_circle(f,14,10,13,dk);world_circle(f,0,15,15,md);world_circle(f,-8,20,9,md);world_circle(f,9,20,9,md);world_quad(f,-18,4,18,4,17,-4,-17,-4,br);
+    world_circle(f,-10,14,3,red);world_circle(f,3,23,3,red);world_circle(f,14,13,3,red);world_circle(f,-1,9,3,red);world_circle(f,9,20,2,red);
 }
-
-static const lv_image_dsc_t make_image_dsc(uint8_t frame)
-{
-    const uint16_t w = frame == 0 ? VEGG_EEVEE_RUN0_W : (frame == 1 ? VEGG_EEVEE_RUN1_W : VEGG_EEVEE_RUN2_W);
-    const uint16_t h = frame == 0 ? VEGG_EEVEE_RUN0_H : (frame == 1 ? VEGG_EEVEE_RUN1_H : VEGG_EEVEE_RUN2_H);
-    const uint8_t *src = NULL;
-
-    switch (frame) {
-        case 0: src = VEGG_EEVEE_RUN0; break;
-        case 1: src = VEGG_EEVEE_RUN1; break;
-        default: src = VEGG_EEVEE_RUN2; break;
-    }
-
-    for (uint16_t y = 0; y < h; ++y) {
-        for (uint16_t x = 0; x < w; ++x) {
-            const uint16_t p = y * w + x;
-            const uint8_t packed = src[p >> 1];
-            const uint8_t pi = (p & 1u) ? (packed & 0x0Fu) : (packed >> 4);
-            runner_pixels[p] = (pi == 0) ? 0x00000000u
-                                         : rgb565_to_argb8888(VEGG_EEVEE_PALETTE[pi]);
-        }
-    }
-
-    lv_image_dsc_t dsc = {};
-    dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-    dsc.header.cf = LV_COLOR_FORMAT_ARGB8888;
-    dsc.header.w = w;
-    dsc.header.h = h;
-    dsc.header.stride = w * 4;
-    dsc.data = reinterpret_cast<const uint8_t *>(runner_pixels);
-    dsc.data_size = dsc.header.stride * h;
-    return dsc;
+static void world_branch(float x){
+    WorldFrame f=frame_at(x,4,1);uint16_t tr=rgb(105,66,38),c1=rgb(40,120,55),c2=rgb(75,165,75);
+    world_quad(f,-9,-6,9,-6,7,150,-7,150,tr);world_quad(f,-4,78,-4,62,-92,66,-92,74,tr);
+    world_circle(f,0,160,38,c1);world_circle(f,-26,148,28,c1);world_circle(f,26,148,28,c1);world_circle(f,-86,70,12,c1);world_circle(f,-80,80,18,c1);world_circle(f,-55,92,30,c1);world_circle(f,-25,100,34,c1);world_circle(f,-40,108,20,c2);
 }
-
-static void set_runner_frame(uint8_t frame)
-{
-    static lv_image_dsc_t dsc;
-    dsc = make_image_dsc(frame);
-    lv_image_set_src(runner, &dsc);
-    lv_obj_set_size(runner, dsc.header.w * 3, dsc.header.h * 3);
-    lv_obj_set_pos(runner,
-                   (int)runner_x - (int)(dsc.header.w * 3 / 2),
-                   304 - (int)jump_h - (int)(dsc.header.h * 3));
+static void world_eevee(){
+    uint8_t fr=jump_h>.5f?0:(uint8_t)((uint32_t)(run_time*10)%VEGG_EEVEE_RUN_FRAMES);
+    const uint16_t ws[]={VEGG_EEVEE_RUN0_W,VEGG_EEVEE_RUN1_W,VEGG_EEVEE_RUN2_W},hs[]={VEGG_EEVEE_RUN0_H,VEGG_EEVEE_RUN1_H,VEGG_EEVEE_RUN2_H};
+    const uint8_t*srcs[]={VEGG_EEVEE_RUN0,VEGG_EEVEE_RUN1,VEGG_EEVEE_RUN2};uint16_t w=ws[fr],h=hs[fr];WorldFrame f=frame_at(runner_x,-jump_h,3);float ox=(w-1)*.5f;
+    for(uint16_t sy=0;sy<h;++sy)for(uint16_t sx=0;sx<w;++sx){uint16_t p=sy*w+sx;uint8_t q=srcs[fr][p>>1],pi=(p&1)?(q&15):(q>>4);if(!pi)continue;int x,y;world_point(f,(w-1-sx)-ox,(h-1-sy),x,y);fill_rect(x,y,3,3,VEGG_EEVEE_PALETTE[pi]);}
 }
-
-static void clear_obstacle(int i)
-{
-    if (obstacle_obj[i]) {
-        lv_obj_del(obstacle_obj[i]);
-        obstacle_obj[i] = NULL;
-    }
+static void render_world(){
+    const uint8_t a[3]={110,185,235},b[3]={210,238,225};int hh=(int)(WORLD_G+40);
+    for(int i=0;i<10;++i){float u=(float)i/9;fill_rect(0,hh*i/10,WORLD_W,hh/10+1,rgb((uint8_t)(a[0]+(b[0]-a[0])*u),(uint8_t)(a[1]+(b[1]-a[1])*u),(uint8_t)(a[2]+(b[2]-a[2])*u)));}
+    world_band(26,rgb(78,138,112),rgb(95,155,128),0);world_layer(.35f,46,26,.45f,.70f,20,rgb(80,100,95),rgb(70,130,110),rgb(95,158,132),0x1111);
+    world_band(13,rgb(58,122,82),rgb(78,145,95),0);world_layer(.65f,62,13,.65f,.95f,22,rgb(92,64,44),rgb(40,108,68),rgb(62,138,88),0x2222);
+    world_band(0,rgb(70,150,60),rgb(105,190,72),rgb(112,82,52));world_layer(1,120,0,.95f,1.30f,40,rgb(108,68,40),rgb(40,125,55),rgb(72,162,72),0x3333);
+    uint16_t gr=rgb(70,150,70);for(int x=5;x<WORLD_W;x+=38){int y=(int)lroundf(ground_y(x));draw_line(x,y,x-4,y-10,gr);draw_line(x+4,y,x+7,y-13,gr);draw_line(x+8,y,x+12,y-8,gr);}
+    int cloud=(int)((lv_tick_get()/45)%560)-60;uint16_t cc=rgb(250,252,246);fill_circle(cloud,82,11,cc);fill_circle(cloud+16,85,9,cc);fill_circle(cloud-13,87,8,cc);
+    for(int i=0;i<4;++i)if(obstacles[i].active)(obstacles[i].branch?world_branch:world_bush)(obstacles[i].x);
+    world_eevee(); if(world)lv_obj_invalidate(world);
 }
-
-static void draw_obstacle(int i)
-{
-    clear_obstacle(i);
-    if (!screen) return;
-
-    lv_obj_t *o = lv_obj_create(screen);
-    lv_obj_remove_style_all(o);
-    lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(o, obstacles[i].branch ? BRANCH : BUSH, 0);
-    lv_obj_clear_flag(o, LV_OBJ_FLAG_CLICKABLE);
-
-    if (obstacles[i].branch) {
-        lv_obj_set_size(o, 92, 18);
-        lv_obj_set_pos(o, (int)obstacles[i].x - 80, 242);
-    } else {
-        lv_obj_set_size(o, 42, 34);
-        lv_obj_set_pos(o, (int)obstacles[i].x - 21, 280);
-    }
-    obstacle_obj[i] = o;
-}
-
-static void spawn_obstacle(void)
-{
-    int slot = -1;
-    for (int i = 0; i < 4; ++i) {
-        if (!obstacles[i].active) {
-            slot = i;
-            break;
-        }
-    }
-    if (slot < 0) return;
-
-    obstacles[slot].active = true;
-    obstacles[slot].branch = score >= 15 && frand() < (score >= 80 ? 0.5f : 0.3f);
-    obstacles[slot].x = 520.0f;
-    draw_obstacle(slot);
-
-    float min_gap = speed * 0.48f + 55.0f;
-    float random_gap = speed * (0.10f + frand() * 0.36f)
-                     + (obstacles[slot].branch ? 75.0f : 55.0f);
-    next_gap = fmaxf(min_gap, random_gap);
-}
-
-static bool collision(void)
-{
-    const float left = runner_x - 24.0f;
-    const float right = runner_x + 24.0f;
-    const float bottom = jump_h;
-    const float top = jump_h + 54.0f;
-
-    for (int i = 0; i < 4; ++i) {
-        if (!obstacles[i].active) continue;
-
-        if (!obstacles[i].branch) {
-            if (right > obstacles[i].x - 18.0f &&
-                left < obstacles[i].x + 18.0f &&
-                bottom < 28.0f) {
-                return true;
-            }
-        } else {
-            if (right > obstacles[i].x - 88.0f &&
-                left < obstacles[i].x + 8.0f &&
-                top > 55.0f) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-static void finish_run(void)
-{
-    state = VEGG_GAME_OVER;
-    game_over_at = lv_tick_get();
-
-    if (score > best) {
-        best = score;
-        nvs_save_best();
-    }
-
-    if (game_over_panel) {
-        lv_obj_clear_flag(game_over_panel, LV_OBJ_FLAG_HIDDEN);
-    }
-    update_labels();
-}
-
-static void jump(void)
-{
-    if (state == VEGG_GAME_OVER) {
-        if (lv_tick_get() - game_over_at > 700) {
-            state = VEGG_RUNNING;
-            score = 0;
-            distance_run = 0;
-            run_time = 0;
-            jump_h = 0;
-            jump_v = 0;
-            next_gap = 240;
-            for (int i = 0; i < 4; ++i) {
-                obstacles[i].active = false;
-                clear_obstacle(i);
-            }
-            if (game_over_panel) {
-                lv_obj_add_flag(game_over_panel, LV_OBJ_FLAG_HIDDEN);
-            }
-            update_labels();
-        }
-        return;
-    }
-
-    if (state == VEGG_RUNNING) {
-        jump_v = 820.0f;
-        state = VEGG_JUMPING;
-    } else if (state == VEGG_JUMPING && jump_v > 0) {
-        jump_v = -1500.0f;
-    }
-}
-
-static void tap_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    if (!active) return;
-    jump();
-}
-
-static void exit_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    if (exit_callback) exit_callback();
-}
-
-static void tick(lv_timer_t *t)
-{
-    LV_UNUSED(t);
-    if (!active) return;
-
-    const uint32_t now = lv_tick_get();
-    float dt = (now - last_tick) / 1000.0f;
-    if (dt > 0.05f) dt = 0.05f;
-    last_tick = now;
-
-    if (state == VEGG_GAME_OVER) {
-        if (now - game_over_at >= 6000) {
-            if (exit_callback) exit_callback();
-        }
-        return;
-    }
-
-    run_time += dt;
-    speed = fminf(240.0f + 12.0f * run_time, 700.0f);
-    distance_run += speed * dt;
-    score = (uint32_t)(distance_run / 10.0f);
-
-    if (state == VEGG_JUMPING) {
-        jump_v -= 2700.0f * dt;
-        jump_h += jump_v * dt;
-        if (jump_h <= 0) {
-            jump_h = 0;
-            jump_v = 0;
-            state = VEGG_RUNNING;
-        }
-    }
-
-    for (int i = 0; i < 4; ++i) {
-        if (!obstacles[i].active) continue;
-        obstacles[i].x -= speed * dt;
-        if (obstacles[i].x < -140) {
-            obstacles[i].active = false;
-            clear_obstacle(i);
-        } else {
-            draw_obstacle(i);
-        }
-    }
-
-    next_gap -= speed * dt;
-    if (next_gap <= 0) spawn_obstacle();
-
-    if (collision()) finish_run();
-
-    const uint8_t frame = jump_h > 0.5f
-        ? 0
-        : (uint8_t)((uint32_t)(run_time * 10.0f) % VEGG_EEVEE_RUN_FRAMES);
-
-    set_runner_frame(frame);
-    update_labels();
-}
-
+static void update_world_image(){if(!world)return;world_dsc.header.magic=LV_IMAGE_HEADER_MAGIC;world_dsc.header.cf=LV_COLOR_FORMAT_RGB565;world_dsc.header.w=WORLD_W;world_dsc.header.h=WORLD_H;world_dsc.header.stride=WORLD_W*2;world_dsc.data=(const uint8_t*)world_pixels;world_dsc.data_size=WORLD_W*WORLD_H*2;lv_image_set_src(world,&world_dsc);}
 static void build_scene(void)
 {
     lv_obj_set_style_bg_color(screen, SKY, 0);
