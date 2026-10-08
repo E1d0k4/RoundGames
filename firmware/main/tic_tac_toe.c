@@ -126,6 +126,8 @@ static int     s_rounds;
 
 /* UI-Objekte */
 
+static bool    s_in_game;
+
 static lv_obj_t   *s_cell[9];
 
 static lv_obj_t   *s_lbl[9];
@@ -830,4 +832,14 @@ void tic_tac_toe_open(lv_obj_t *screen)
 {
     s_screen = screen;
     menu_create();
+}
+void tic_tac_toe_prepare_settings(void)
+{
+    kill_timers();
+}
+
+void tic_tac_toe_resume_from_settings(void)
+{
+    if (s_in_game) game_create();
+    else menu_create();
 }
