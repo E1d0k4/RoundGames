@@ -394,6 +394,7 @@ static void tick(lv_timer_t *t)
         : (uint8_t)((uint32_t)(run_time * 10.0f) % VEGG_EEVEE_RUN_FRAMES);
 
     set_runner_frame(frame);
+    render_world();
     update_labels();
 }
 
@@ -503,6 +504,12 @@ void vegg_stop(void)
         obstacle_obj[i] = NULL;
     }
 
+    if (world_pixels) {
+        heap_caps_free(world_pixels);
+        world_pixels = NULL;
+    }
+
+    world = NULL;
     runner = NULL;
     score_label = NULL;
     best_label = NULL;
