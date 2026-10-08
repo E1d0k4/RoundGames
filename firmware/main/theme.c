@@ -43,6 +43,7 @@ void theme_apply(lv_obj_t *screen)
         lv_obj_set_style_bg_opa(theme_effects[i], LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(theme_effects[i], 0, 0);
         lv_obj_clear_flag(theme_effects[i], LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(theme_effects[i], LV_OBJ_FLAG_GESTURE_BUBBLE);
         lv_obj_move_background(theme_effects[i]);
         if (theme == 2) {
             lv_obj_set_size(theme_effects[i], 190, 190);
