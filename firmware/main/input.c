@@ -37,19 +37,15 @@ static void input_gesture_cb(lv_event_t *e)
     lv_dir_t dir = lv_indev_get_gesture_dir(indev);
 
     if (game_active) {
-        if (dir == LV_DIR_TOP && gesture_start_y >= 340) {
-            if (up_action) up_action();
-            return;
-        }
+        /* While a game is active, all four swipe directions belong to the game.
+         * Exiting a game is handled by the physical PWR button. */
         if (game_gesture_action) {
             game_gesture_action(dir);
             return;
         }
-        if (dir == LV_DIR_BOTTOM) {
-            if (bottom_action) bottom_action();
-            return;
+        if (dir == LV_DIR_BOTTOM && bottom_action) {
+            bottom_action();
         }
-        if (dir == LV_DIR_TOP && up_action) up_action();
         return;
     }
 
