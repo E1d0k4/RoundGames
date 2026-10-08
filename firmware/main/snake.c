@@ -148,13 +148,18 @@ static void tap_cb(lv_event_t *e)
 
 static void prepare_screen(void)
 {
+    snake_stop();
+    lv_obj_clean(screen);
+    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    theme_apply(screen);
+}
+
+void snake_stop(void)
+{
     if (timer) {
         lv_timer_del(timer);
         timer = NULL;
     }
-    lv_obj_clean(screen);
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-    theme_apply(screen);
 }
 
 void snake_open(lv_obj_t *target)
