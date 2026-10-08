@@ -18,9 +18,8 @@
 #include "theme.h"
 #include "screensaver.h"
 #include "settings_ui.h"
-#include "tic_tac_toe.h"
-#include "snake.h"
 #include "power_button.h"
+#include "game_manager.h"
 
 static const char *TAG = "roundgames";
 
@@ -120,7 +119,7 @@ static void activity_reset(void)
 
 static void power_button_cb(void)
 {
-    if (input_is_game_active()) {
+    if (game_manager_is_active()) {
         /* A short PWR press ends the current game and returns to the launcher. */
         gesture_game_back_cb();
         return;
@@ -279,13 +278,9 @@ static void gesture_right_cb(void)
 
 static void gesture_game_back_cb(void)
 {
-    /* Stop game timers before scheduling the launcher rebuild. This makes
-     * the physical PWR exit feel immediate instead of waiting for the
-     * game's next timer tick. */
-    tic_tac_toe_stop();
-    snake_stop();
-    input_set_game_state(false, NULL);
-    screensaver_set_game_active(false);
+    /* The game manager owns game-specific cleanup, so main.c only
+     * orchestrates the return to the launcher. */
+    game_manager_stop();
     activity_reset();
     lv_async_call(launcher_async_cb, NULL);
 }
@@ -509,18 +504,11 @@ static void build_info_page(void)
 
 static void launcher_game_action(int game_index, const char *name)
 {
-    LV_UNUSED(name);
     activity_reset();
-    input_set_game_state(true, gesture_game_back_cb);
-    screensaver_set_game_active(true);
 
-    if (game_index == 0) {
+    if (game_index == 0 || game_index == 1) {
         clear_screen();
-        input_set_game_gesture_callback(NULL);
-        tic_tac_toe_open(lv_scr_act());
-    } else if (game_index == 1) {
-        clear_screen();
-        snake_open(lv_scr_act());
+        game_manager_start((game_id_t)game_index, lv_scr_act());
     } else {
         char msg[64];
         snprintf(msg, sizeof(msg), "%s\n%s",
@@ -558,6 +546,7 @@ void app_main(void)
     launcher_init(8);
     display_init();
     display_set_brightness(current_brightness);
+    game_manager_init();
     power_button_init();
     power_button_set_callback(power_button_cb);
     display_lock();
