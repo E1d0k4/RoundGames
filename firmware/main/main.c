@@ -507,7 +507,7 @@ static void launcher_game_action(int game_index, const char *name)
 {
     activity_reset();
 
-    if (game_index == 0 || game_index == 1) {
+    if (game_index >= 0 && game_index <= 2) {
         clear_screen();
         game_manager_start((game_id_t)game_index, lv_scr_act());
     } else {
