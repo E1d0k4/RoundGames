@@ -6,10 +6,19 @@
 #include "snake.h"
 
 static game_id_t current_game = GAME_ID_NONE;
+static void (*exit_callback)(void) = NULL;
 
 static void game_manager_exit_cb(void)
 {
     game_manager_stop();
+    if (exit_callback) {
+        exit_callback();
+    }
+}
+
+void game_manager_set_exit_callback(void (*callback)(void))
+{
+    exit_callback = callback;
 }
 
 void game_manager_init(void)
