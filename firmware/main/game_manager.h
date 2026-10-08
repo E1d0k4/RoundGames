@@ -10,6 +10,7 @@ typedef enum {
 } game_id_t;
 
 void game_manager_init(void);
+void game_manager_set_exit_callback(void (*callback)(void));
 bool game_manager_start(game_id_t game_id, lv_obj_t *screen);
 void game_manager_stop(void);
 bool game_manager_is_active(void);
