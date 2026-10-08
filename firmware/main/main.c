@@ -18,6 +18,7 @@
 #include "theme.h"
 #include "screensaver.h"
 #include "settings_ui.h"
+#include "tic_tac_toe.h"
 #include "power_button.h"
 #include "game_manager.h"
 
