@@ -20,6 +20,7 @@
 #include "settings_ui.h"
 #include "tic_tac_toe.h"
 #include "snake.h"
+#include "power_button.h"
 
 static const char *TAG = "roundgames";
 
@@ -31,6 +32,7 @@ static int dim_timeout = 30;
 static bool sound_muted = false;
 static uint32_t favorite_games = 1u;
 static bool settings_return_to_game = false;
+static bool display_powered_off = false;
 
 static lv_obj_t *brightness_slider = NULL;
 static lv_obj_t *brightness_value_label = NULL;
@@ -113,6 +115,27 @@ static void load_settings(void)
 static void activity_reset(void)
 {
     screensaver_activity_reset();
+}
+
+static void power_button_cb(void)
+{
+    if (input_is_game_active()) {
+        /* A short PWR press ends the current game and returns to the launcher. */
+        gesture_game_back_cb();
+        return;
+    }
+
+    /* Outside games the same short press toggles only the display.
+     * A long press is left to the board/AXP2101 power controller. */
+    if (display_powered_off) {
+        display_powered_off = false;
+        display_set_brightness(current_brightness);
+        activity_reset();
+    } else {
+        activity_reset();
+        display_set_brightness(0);
+        display_powered_off = true;
+    }
 }
 
 
@@ -526,6 +549,8 @@ void app_main(void)
     launcher_init(8);
     display_init();
     display_set_brightness(current_brightness);
+    power_button_init();
+    power_button_set_callback(power_button_cb);
     display_lock();
     build_launcher();
 
