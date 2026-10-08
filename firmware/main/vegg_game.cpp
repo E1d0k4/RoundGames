@@ -14,12 +14,6 @@ enum VeggState {
     VEGG_GAME_OVER
 };
 
-struct Obstacle {
-    bool active;
-    bool branch;
-    float x;
-};
-
 static lv_obj_t *screen = NULL;
 static lv_obj_t *runner = NULL;
 static lv_obj_t *score_label = NULL;
@@ -27,6 +21,9 @@ static lv_obj_t *best_label = NULL;
 static lv_obj_t *game_over_panel = NULL;
 static lv_timer_t *timer = NULL;
 static lv_obj_t *obstacle_obj[4] = {NULL, NULL, NULL, NULL};
+
+struct Obstacle { bool active; bool branch; float x; };
+static Obstacle obstacles[4];
 
 static bool active = false;
 static VeggState state = VEGG_RUNNING;
@@ -155,8 +152,6 @@ static void draw_obstacle(int i)
     }
     obstacle_obj[i] = o;
 }
-
-static Obstacle obstacles[4];
 
 static void spawn_obstacle(void)
 {
@@ -339,7 +334,7 @@ static void build_scene(void)
     lv_obj_remove_style_all(planet);
     lv_obj_set_style_bg_color(planet, GROUND, 0);
     lv_obj_set_style_radius(planet, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_size(700, 300);
+    lv_obj_set_size(planet, 700, 300);
     lv_obj_set_pos(planet, -117, 285);
     lv_obj_clear_flag(planet, LV_OBJ_FLAG_CLICKABLE);
 
