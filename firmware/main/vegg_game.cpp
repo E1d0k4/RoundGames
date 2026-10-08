@@ -106,8 +106,8 @@ static uint32_t rgb565_to_argb8888(uint16_t c)
 
 static const lv_image_dsc_t make_image_dsc(uint8_t frame)
 {
-    const uint16_t w = VEGG_EEVEE_W[frame];
-    const uint16_t h = VEGG_EEVEE_H[frame];
+    const uint16_t w = frame == 0 ? VEGG_EEVEE_RUN0_W : (frame == 1 ? VEGG_EEVEE_RUN1_W : VEGG_EEVEE_RUN2_W);
+    const uint16_t h = frame == 0 ? VEGG_EEVEE_RUN0_H : (frame == 1 ? VEGG_EEVEE_RUN1_H : VEGG_EEVEE_RUN2_H);
     const uint8_t *src = NULL;
 
     switch (frame) {
@@ -132,7 +132,7 @@ static const lv_image_dsc_t make_image_dsc(uint8_t frame)
     dsc.header.w = w;
     dsc.header.h = h;
     dsc.header.stride = w * 4;
-    dsc.data = runner_pixels;
+    dsc.data = reinterpret_cast<const uint8_t *>(runner_pixels);
     dsc.data_size = dsc.header.stride * h;
     return dsc;
 }
@@ -337,7 +337,7 @@ static void tick(lv_timer_t *t)
 
     const uint8_t frame = jump_h > 0.5f
         ? 0
-        : (uint8_t)((uint32_t)(run_time * 10.0f) % VEGG_EEVEE_FRAMES);
+        : (uint8_t)((uint32_t)(run_time * 10.0f) % VEGG_EEVEE_RUN_FRAMES);
 
     set_runner_frame(frame);
     update_labels();
