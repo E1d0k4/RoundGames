@@ -28,7 +28,6 @@ static int dim_brightness = 10;
 static int dim_timeout = 30;
 
 static bool sound_muted = false;
-static bool launcher_active = true;
 static uint32_t favorite_games = 1u;
 
 static lv_obj_t *brightness_slider = NULL;
@@ -37,7 +36,6 @@ static lv_obj_t *volume_slider = NULL;
 static lv_obj_t *volume_value_label = NULL;
 static lv_obj_t *dim_slider = NULL;
 static lv_obj_t *dim_value_label = NULL;
-static lv_timer_t *theme_animation_timer = NULL;
 
 
 
@@ -119,7 +117,6 @@ static void activity_reset(void)
 
 static void clear_screen(void)
 {
-    launcher_active = false;
     launcher_set_active(false);
     activity_reset();
     lv_obj_clean(lv_scr_act());
@@ -465,7 +462,6 @@ static void launcher_game_action(int game_index, const char *name)
 static void build_launcher(void)
 {
     clear_screen();
-    launcher_active = true;
     launcher_set_active(true);
     launcher_build(lv_scr_act(), launcher_game_action);
 }
@@ -495,7 +491,7 @@ void app_main(void)
 
     audio_init();
     lv_timer_create(screensaver_tick, 100, NULL);
-    theme_animation_timer=lv_timer_create(theme_animation_tick,33,NULL);
+    lv_timer_create(theme_animation_tick,33,NULL);
     display_unlock();
     ESP_LOGI(TAG,"RoundGames Phase 3 UI ready");
 }
