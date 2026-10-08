@@ -51,11 +51,13 @@ static constexpr float WORLD_CX=233.0f, WORLD_R=699.0f, WORLD_G=298.0f;
 static inline uint16_t rgb(uint8_t r,uint8_t g,uint8_t b){return (uint16_t)(((r&0xF8)<<8)|((g&0xFC)<<3)|(b>>3));}
 static inline void px(int x,int y,uint16_t c){if(world_pixels&&x>=0&&x<WORLD_W&&y>=0&&y<WORLD_H)world_pixels[y*WORLD_W+x]=c;}
 static void fill_rect(int x,int y,int w,int h,uint16_t c){
-    if(!world_pixels)return; int x0=x<0?0:x,y0=y<0?0:y,x1=x+w>WORLD_W?WORLD_W:x+w,y1=y+h>WORLD_H?WORLD_H:y+h;
+    if(!world_pixels) return;
+    int x0=x<0?0:x,y0=y<0?0:y,x1=x+w>WORLD_W?WORLD_W:x+w,y1=y+h>WORLD_H?WORLD_H:y+h;
     for(int yy=y0;yy<y1;++yy)for(int xx=x0;xx<x1;++xx)world_pixels[yy*WORLD_W+xx]=c;
 }
 static void fill_circle(int cx,int cy,int r,uint16_t c){
-    if(r<1)r=1; for(int y=-r;y<=r;++y){int xx=(int)sqrtf((float)(r*r-y*y));fill_rect(cx-xx,cy+y,xx*2+1,1,c);}
+    if(r<1) r=1;
+    for(int y=-r;y<=r;++y){int xx=(int)sqrtf((float)(r*r-y*y));fill_rect(cx-xx,cy+y,xx*2+1,1,c);}
 }
 static void draw_line(int x0,int y0,int x1,int y1,uint16_t c){
     int dx=abs(x1-x0),sx=x0<x1?1:-1,dy=-abs(y1-y0),sy=y0<y1?1:-1,err=dx+dy;
@@ -159,11 +161,7 @@ static void update_labels(void)
     lv_label_set_text_fmt(best_label, "BEST  %04lu", (unsigned long)best);
 }
 
-static void create_runner_image(void)
-{
-    if (!runner) return;
-    lv_image_set_src(runner, NULL);
-}
+
 
 static uint32_t runner_pixels[25 * 20];
 
