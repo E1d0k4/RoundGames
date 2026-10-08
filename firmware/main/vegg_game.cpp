@@ -347,13 +347,13 @@ static void build_scene(void)
     lv_obj_clear_flag(grass, LV_OBJ_FLAG_CLICKABLE);
 
     score_label = lv_label_create(screen);
-    lv_obj_set_style_text_font(score_label, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(score_label, &lv_font_montserrat_22, 0);
     lv_obj_set_style_text_color(score_label, lv_color_white(), 0);
     lv_label_set_text(score_label, "SCORE  0000");
     lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, 58);
 
     best_label = lv_label_create(screen);
-    lv_obj_set_style_text_font(best_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(best_label, &lv_font_montserrat_22, 0);
     lv_obj_set_style_text_color(best_label, lv_color_white(), 0);
     lv_label_set_text(best_label, "BEST  0000");
     lv_obj_align(best_label, LV_ALIGN_TOP_MID, 0, 88);
@@ -385,7 +385,7 @@ static void build_scene(void)
 
     lv_obj_t *hint = lv_label_create(game_over_panel);
     lv_label_set_text(hint, "Tap = retry");
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_22, 0);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -20);
 
     runner = lv_image_create(screen);
