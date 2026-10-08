@@ -547,6 +547,7 @@ void app_main(void)
     display_init();
     display_set_brightness(current_brightness);
     game_manager_init();
+    game_manager_set_exit_callback(gesture_game_back_cb);
     power_button_init();
     power_button_set_callback(power_button_cb);
     display_lock();
