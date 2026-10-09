@@ -89,7 +89,7 @@ static float angle_diff(float a, float b)
 
 static float radius_of(float x, float y) { return sqrtf(x * x + y * y); }
 static float paddle_half_width(void) { return wide_timer > 0.0f ? 0.42f : 0.27f; }
-static float ball_speed(void) { return fminf(390.0f + 16.0f * level, 590.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
+static float ball_speed(void) { return fminf(235.0f + 9.0f * level, 360.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
 static int multiplier(void) { return 1 + (combo / 3 > 4 ? 4 : combo / 3); }
 
 static void update_hud()
@@ -397,7 +397,7 @@ static void update_game(float dt)
     float sp = radius_of(vx, vy);
     float target = ball_speed();
     if (sp > 0.1f) { vx = vx / sp * target; vy = vy / sp * target; }
-    const int substeps = 6;
+    const int substeps = 8;
     float h = dt / substeps;
     for (int k = 0; k < substeps && state == PLAYING; ++k) {
         float ox = bx, oy = by;
@@ -629,7 +629,7 @@ static void tick(lv_timer_t *t)
     uint32_t now = lv_tick_get();
     float dt = last_ms == 0 ? 0.016f : (float)(now - last_ms) / 1000.0f;
     last_ms = now;
-    if (dt > 0.10f) dt = 0.10f;
+    if (dt > 0.05f) dt = 0.05f;
     update_motion_control();
     if (state == PLAYING || state == READY || state == LEVEL_DONE) {
         update_game(dt);
