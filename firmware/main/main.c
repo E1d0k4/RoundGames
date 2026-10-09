@@ -21,6 +21,7 @@
 #include "tic_tac_toe.h"
 #include "power_button.h"
 #include "game_manager.h"
+#include "build_version.h"
 
 static const char *TAG = "roundgames";
 
@@ -497,7 +498,7 @@ static void build_info_page(void)
 {
     clear_screen(); lv_obj_t *s=lv_scr_act(); add_title(s,"RoundGames");
     lv_obj_t *info=lv_label_create(s);
-    lv_label_set_text(info,"Firmware  Phase 3\nBoard     ESP32-S3\nDisplay   AMOLED 1.75\"\nSize      466 x 466");
+    lv_label_set_text_fmt(info,"Firmware  %s\nBoard     ESP32-S3\nDisplay   AMOLED 1.75\"\nSize      466 x 466", ROUNDGAMES_BUILD_VERSION);
     lv_obj_set_style_text_font(info,&lv_font_montserrat_18,0); lv_obj_align(info,LV_ALIGN_CENTER,0,0);
     add_back_button(s,false);
 }
