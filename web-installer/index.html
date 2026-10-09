@@ -11,5 +11,11 @@ body{font-family:system-ui,sans-serif;max-width:720px;margin:0 auto;padding:32px
 <h1>RoundGames</h1>
 <p>Install RoundGames on your Waveshare ESP32-S3-Touch-AMOLED-1.75 directly from your browser.</p>
 <p class="note">Use Chrome or Edge and connect the board by USB-C before pressing Install.</p>
-<esp-web-install-button manifest="./manifest.json"><button slot="activate">Install RoundGames</button></esp-web-install-button>
+<esp-web-install-button id="roundgames-installer"><button slot="activate">Install RoundGames</button></esp-web-install-button>
+<script>
+// GitHub Pages/browser caches can retain the previous manifest. Add a unique
+// query string before esp-web-tools reads it so each page load fetches fresh metadata.
+const installer = document.getElementById("roundgames-installer");
+installer.setAttribute("manifest", "./manifest.json?cachebust=" + Date.now());
+</script>
 </div></body></html>
