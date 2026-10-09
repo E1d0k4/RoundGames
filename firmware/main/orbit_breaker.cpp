@@ -62,8 +62,6 @@ static qmi8658_dev_t motion_sensor;
 static bool motion_sensor_ready = false;
 static float filtered_gyro_z = 0.0f;
 static uint32_t last_motion_ms = 0;
-constexpr float PADDLE_MIN_ANGLE = 55.0f * PI_F / 180.0f;
-constexpr float PADDLE_MAX_ANGLE = 125.0f * PI_F / 180.0f;
 
 static lv_color_t ring_color(int ring)
 {
@@ -91,7 +89,7 @@ static float angle_diff(float a, float b)
 
 static float radius_of(float x, float y) { return sqrtf(x * x + y * y); }
 static float paddle_half_width(void) { return wide_timer > 0.0f ? 0.42f : 0.27f; }
-static float ball_speed(void) { return fminf(480.0f + 24.0f * level, 760.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
+static float ball_speed(void) { return fminf(390.0f + 16.0f * level, 590.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
 static int multiplier(void) { return 1 + (combo / 3 > 4 ? 4 : combo / 3); }
 
 static void update_hud()
@@ -461,7 +459,8 @@ static void screen_pressing_cb(lv_event_t *e)
 
 static void screen_clicked_cb(lv_event_t *e)
 {
-    if (lv_event_get_target(e) != screen) return;
+    /* Accept taps that bubble up from the visible game objects too. */
+    LV_UNUSED(e);
     if (state == READY) launch_ball();
     else if (state == PLAYING) {
         /* Touch does not steer or pause the running game. */
@@ -531,6 +530,7 @@ static void build_ui(lv_obj_t *target)
             lv_obj_set_style_bg_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);
             lv_obj_set_style_border_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);
             lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
             lv_obj_clear_flag(arc, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_add_flag(arc, LV_OBJ_FLAG_HIDDEN);
             brick_arc[r][s] = arc;
@@ -550,7 +550,8 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_bg_opa(paddle_arc, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_border_opa(paddle_arc, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(paddle_arc, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_SCROLLABLE);
 
     ball_obj = lv_obj_create(screen);
     lv_obj_set_size(ball_obj, (int)(BALL_R * 2), (int)(BALL_R * 2));
@@ -558,7 +559,8 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_border_width(ball_obj, 0, 0);
     lv_obj_set_style_bg_color(ball_obj, lv_color_hex(0xFFFFFF), 0);
     lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(ball_obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_SCROLLABLE);
 
     center_panel = lv_obj_create(screen);
     lv_obj_set_size(center_panel, 180, 130);
@@ -569,17 +571,20 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_radius(center_panel, 18, 0);
     lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(center_panel, LV_OBJ_FLAG_EVENT_BUBBLE);
 
     score_label = lv_label_create(center_panel);
     lv_obj_set_style_text_font(score_label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(score_label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, 8);
+    lv_obj_add_flag(score_label, LV_OBJ_FLAG_EVENT_BUBBLE);
     detail_label = lv_label_create(center_panel);
     lv_obj_set_width(detail_label, 166);
     lv_obj_set_style_text_align(detail_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(detail_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(detail_label, lv_color_hex(0x9FAAC5), 0);
     lv_obj_align(detail_label, LV_ALIGN_TOP_MID, 0, 43);
+    lv_obj_add_flag(detail_label, LV_OBJ_FLAG_EVENT_BUBBLE);
 
     create_mode_button("KLASSIK", 160, CLASSIC);
     create_mode_button("ENDLOS", 220, ENDLESS);
@@ -608,14 +613,12 @@ static void update_motion_control(void)
     if (dt < 0.001f || dt > 0.08f) dt = 0.02f;
 
     /* Rotate the device like a steering wheel: integrate Z-axis gyro rate.
-       Keep the paddle in the lower arc instead of letting it orbit around
-       the entire ring. A small dead zone suppresses sensor noise. */
+       Let the paddle travel around the full ring so the player can reach
+       the ball wherever it goes. A small dead zone suppresses sensor noise. */
     float rate = data.gyroZ;
     if (fabsf(rate) < 0.045f) rate = 0.0f;
     filtered_gyro_z += (rate - filtered_gyro_z) * 0.55f;
-    paddle_angle -= filtered_gyro_z * dt * 5.0f;
-    if (paddle_angle < PADDLE_MIN_ANGLE) paddle_angle = PADDLE_MIN_ANGLE;
-    if (paddle_angle > PADDLE_MAX_ANGLE) paddle_angle = PADDLE_MAX_ANGLE;
+    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt * 5.0f);
     render_paddle();
 }
 
