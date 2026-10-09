@@ -20,7 +20,7 @@ constexpr int SCREEN_SIZE = 466;
 constexpr int CX = 233;
 constexpr int CY = 233;
 constexpr int RINGS = 7;
-constexpr int SEGMENTS = 24;
+constexpr int SEGMENTS = 18;
 constexpr float INNER_R = 62.0f;
 constexpr float RING_STEP = 20.0f;
 constexpr float PADDLE_R = 220.0f;
@@ -91,7 +91,7 @@ static float angle_diff(float a, float b)
 
 static float radius_of(float x, float y) { return sqrtf(x * x + y * y); }
 static float paddle_half_width(void) { return wide_timer > 0.0f ? 0.42f : 0.27f; }
-static float ball_speed(void) { return fminf(190.0f + 12.0f * level, 340.0f) * (slow_timer > 0.0f ? 0.7f : 1.0f); }
+static float ball_speed(void) { return fminf(300.0f + 18.0f * level, 520.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
 static int multiplier(void) { return 1 + (combo / 3 > 4 ? 4 : combo / 3); }
 
 static void update_hud()
@@ -614,7 +614,7 @@ static void update_motion_control(void)
     float rate = data.gyroZ;
     if (fabsf(rate) < 0.045f) rate = 0.0f;
     filtered_gyro_z += (rate - filtered_gyro_z) * 0.55f;
-    paddle_angle += filtered_gyro_z * dt * 1.8f;
+    paddle_angle -= filtered_gyro_z * dt * 2.8f;
     if (paddle_angle < PADDLE_MIN_ANGLE) paddle_angle = PADDLE_MIN_ANGLE;
     if (paddle_angle > PADDLE_MAX_ANGLE) paddle_angle = PADDLE_MAX_ANGLE;
     render_paddle();
@@ -653,7 +653,7 @@ extern "C" void orbit_breaker_open(lv_obj_t *target)
             motion_sensor_ready = true;
         }
     }
-    timer = lv_timer_create(tick, 20, nullptr);
+    timer = lv_timer_create(tick, 16, nullptr);
 }
 
 extern "C" void orbit_breaker_stop(void)
