@@ -35,7 +35,7 @@ The current firmware code is primarily located in `firmware/main/`, not in separ
 - Vegg: `vegg_game.cpp/.h`, with `vegg_sprites.h`
 - Orbit Breaker: `orbit_breaker.cpp/.h`
 
-The game manager currently dispatches these four games. The launcher also contains placeholder labels for additional slots; a visible placeholder is not an implemented game.
+The game manager currently dispatches these four games. The launcher currently exposes only the four implemented games; future games should be registered in the launcher and game manager together.
 
 The folders under `firmware/components/` currently contain component-level README files, not all of the corresponding service implementations as independent ESP-IDF components. Likewise, `firmware/games/tictactoe/` is currently only a placeholder directory. The repository should be reorganized incrementally rather than pretending the proposed structure already exists.
 
