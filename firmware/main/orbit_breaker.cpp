@@ -60,7 +60,10 @@ static float slow_timer = 0.0f;
 static float fire_timer = 0.0f;
 static qmi8658_dev_t motion_sensor;
 static bool motion_sensor_ready = false;
-static float filtered_tilt_angle = PI_F * 0.5f;
+static float filtered_gyro_z = 0.0f;
+static uint32_t last_motion_ms = 0;
+constexpr float PADDLE_MIN_ANGLE = 55.0f * PI_F / 180.0f;
+constexpr float PADDLE_MAX_ANGLE = 125.0f * PI_F / 180.0f;
 
 static lv_color_t ring_color(int ring)
 {
@@ -599,14 +602,21 @@ static void update_motion_control(void)
     if (qmi8658_is_data_ready(&motion_sensor, &ready) != ESP_OK || !ready) return;
     qmi8658_data_t data;
     if (qmi8658_read_sensor_data(&motion_sensor, &data) != ESP_OK) return;
-    const float tilt_x = data.accelX;
-    const float tilt_y = data.accelY;
-    if (fabsf(tilt_x) + fabsf(tilt_y) < 1.4f) return;
-    float target = wrap_angle(atan2f(-tilt_y, tilt_x));
-    float delta = angle_diff(target, filtered_tilt_angle);
-    if (fabsf(delta) < 0.035f) return;
-    filtered_tilt_angle = wrap_angle(filtered_tilt_angle + delta * 0.28f);
-    paddle_angle = filtered_tilt_angle;
+
+    const uint32_t now = lv_tick_get();
+    float dt = last_motion_ms == 0 ? 0.02f : (float)(now - last_motion_ms) / 1000.0f;
+    last_motion_ms = now;
+    if (dt < 0.001f || dt > 0.08f) dt = 0.02f;
+
+    /* Rotate the device like a steering wheel: integrate Z-axis gyro rate.
+       Keep the paddle in the lower arc instead of letting it orbit around
+       the entire ring. A small dead zone suppresses sensor noise. */
+    float rate = data.gyroZ;
+    if (fabsf(rate) < 0.045f) rate = 0.0f;
+    filtered_gyro_z += (rate - filtered_gyro_z) * 0.55f;
+    paddle_angle += filtered_gyro_z * dt * 1.8f;
+    if (paddle_angle < PADDLE_MIN_ANGLE) paddle_angle = PADDLE_MIN_ANGLE;
+    if (paddle_angle > PADDLE_MAX_ANGLE) paddle_angle = PADDLE_MAX_ANGLE;
     render_paddle();
 }
 
@@ -636,9 +646,9 @@ extern "C" void orbit_breaker_open(lv_obj_t *target)
     if (!motion_sensor_ready) {
         i2c_master_bus_handle_t bus = bsp_i2c_get_handle();
         if (bus && qmi8658_init(&motion_sensor, bus, QMI8658_ADDRESS_HIGH) == ESP_OK) {
-            qmi8658_set_accel_range(&motion_sensor, QMI8658_ACCEL_RANGE_8G);
-            qmi8658_set_accel_odr(&motion_sensor, QMI8658_ACCEL_ODR_500HZ);
-            qmi8658_set_accel_unit_mps2(&motion_sensor, true);
+            qmi8658_set_gyro_range(&motion_sensor, QMI8658_GYRO_RANGE_512DPS);
+            qmi8658_set_gyro_odr(&motion_sensor, QMI8658_GYRO_ODR_500HZ);
+            qmi8658_set_gyro_unit_rads(&motion_sensor, true);
             qmi8658_write_register(&motion_sensor, QMI8658_CTRL5, 0x03);
             motion_sensor_ready = true;
         }
