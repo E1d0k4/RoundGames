@@ -432,6 +432,11 @@ static void update_game(float dt)
     }
 }
 
+static void ignore_game_gesture(lv_dir_t dir)
+{
+    LV_UNUSED(dir);
+}
+
 static void mode_button_cb(lv_event_t *e)
 {
     GameMode m = (GameMode)(intptr_t)lv_event_get_user_data(e);
@@ -611,6 +616,7 @@ extern "C" void orbit_breaker_open(lv_obj_t *target)
     orbit_breaker_stop();
     memset(brick_arc, 0, sizeof(brick_arc));
     build_ui(target);
+    input_set_game_gesture_callback(ignore_game_gesture);
     timer = lv_timer_create(tick, 16, nullptr);
 }
 
