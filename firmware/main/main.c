@@ -545,7 +545,7 @@ void app_main(void)
     input_set_actions(gesture_bottom_cb, gesture_left_cb, gesture_right_cb);
     input_set_activity_callback(activity_reset);
     load_settings();
-    launcher_init(8);
+    launcher_init(4);
     display_init();
     display_set_brightness(current_brightness);
     game_manager_init();
