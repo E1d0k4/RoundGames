@@ -106,8 +106,9 @@ jobs:
       - name: Verify published installer and firmware
         shell: bash
         env:
-          EXPECTED_VERSION: ${GITHUB_SHA::12}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
+          EXPECTED_VERSION="${EXPECTED_SHA:0:12}"
           if [[ "${{ steps.deployment.outcome }}" == "failure" && "${{ steps.deployment_retry.outcome }}" != "success" ]]; then
             echo "Both GitHub Pages deployment attempts failed."
             exit 1
