@@ -13,11 +13,7 @@ static const char *game_names[] = {
     "Tic-Tac-Toe",
     "Snake",
     "Vegg",
-    "Orbit Breaker",
-    "App 5",
-    "App 6",
-    "App 7",
-    "App 8"
+    "Orbit Breaker"
 };
 
 static void launcher_button_cb(lv_event_t *e)
@@ -78,12 +74,9 @@ void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
         } else if (game_index == 2) {
             lv_label_set_text(icon, "E");
             lv_obj_set_style_text_color(icon, lv_color_hex(0xFF9F43), 0);
-        } else if (game_index == 3) {
+        } else {
             lv_label_set_text(icon, "O");
             lv_obj_set_style_text_color(icon, lv_color_hex(0x50DFFF), 0);
-        } else {
-            lv_label_set_text(icon, LV_SYMBOL_PLAY);
-            lv_obj_set_style_text_color(icon, lv_color_hex(0x7C5CFF), 0);
         }
         lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0);
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 10);
