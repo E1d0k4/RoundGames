@@ -570,7 +570,8 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_bg_opa(center_panel, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(center_panel, 0, 0);
     lv_obj_set_style_radius(center_panel, 18, 0);
-    lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_CLICKABLE);
 
     score_label = lv_label_create(center_panel);
     lv_obj_set_style_text_font(score_label, &lv_font_montserrat_24, 0);
