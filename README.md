@@ -1,77 +1,94 @@
 # RoundGames
 
-RoundGames is a modular game platform for the Waveshare ESP32-S3-Touch-AMOLED-1.75.
+RoundGames is a multi-game firmware project for the **Waveshare ESP32-S3-Touch-AMOLED-1.75**. It is built with **ESP-IDF, C/C++, and LVGL 9** and is intended to provide one launcher, shared device functions, and multiple games on the same device.
 
 ## Target hardware
 
 - ESP32-S3R8
-- 466 × 466 CO5300 QSPI AMOLED
+- 466 × 466 CO5300 QSPI AMOLED display
 - CST9217 capacitive touch
-- 16 MB Flash
-- 8 MB PSRAM
-- Optional microSD
-- Wi-Fi / Bluetooth
+- 16 MB flash and 8 MB PSRAM on the target board
+- Board power management and available audio features through the supported board interfaces
 
-The project targets the official Waveshare board support and is designed as a multi-game launcher rather than a single-game firmware.
+The exact board variant and its peripherals matter; do not assume that another 1.75-inch variant is interchangeable without checking its hardware support.
 
-## First game
+## Current games
 
-### Tic-Tac-Toe
+The firmware currently contains these game implementations:
 
-The first game will provide:
+- **Tic-Tac-Toe**
+- **Snake**
+- **Vegg**
+- **Orbit Breaker**
 
-- 1 player
-- 2 players
-- multiple game modes
-- touch-first controls
-- local score/state handling
-- clean return to the RoundGames launcher
+The launcher and game manager are currently implemented in `firmware/main/`. Some older planning documents describe a future per-game directory layout; the current source tree has not yet been fully reorganized to match that proposal.
 
-The game lives in its own directory so future games can be added without restructuring the project.
+## Device features
 
-## Project structure
+The firmware source includes shared code for:
+
+- Launcher with game pages
+- Touch and system/game input handling
+- Settings persistence
+- Language selection
+- Themes
+- Clock/date support
+- Screensaver and dimming behavior
+- Display brightness and power-button behavior
+- Audio controls and device information
+
+Feature availability and behavior should be confirmed against the current firmware build and on the physical device. Documentation of intended behavior is not a guarantee that every feature is fully implemented or hardware-verified.
+
+## Repository layout
 
 ```text
 RoundGames/
 ├── firmware/
-│   ├── main/                  # RoundGames firmware / launcher
-│   ├── components/            # Shared platform components
-│   └── games/
-│       └── tictactoe/         # Tic-Tac-Toe only
-├── web-installer/             # Browser-based USB installer
-├── docs/                      # Architecture and development docs
-├── test/                      # Host/device tests
-└── .github/
-    └── workflows/             # Build, test and release automation
+│   ├── main/                  # Firmware, launcher, game manager and current games
+│   ├── components/            # Component documentation / shared service areas
+│   ├── games/tictactoe/       # Reserved game directory (currently placeholder)
+│   ├── CMakeLists.txt         # ESP-IDF project configuration
+│   ├── sdkconfig.defaults
+│   └── partitions.csv
+├── web-installer/
+│   ├── index.html             # Browser-based installer page
+│   └── manifest.json          # Installer manifest; CI updates release build metadata
+├── docs/
+│   ├── architecture.md
+│   └── system-ui.md
+└── .github/workflows/
+    ├── build-firmware.yml
+    └── deploy-installer.yml
 ```
 
-## Development direction
+## Build and toolchain
 
-RoundGames is being built in layers:
+The canonical firmware toolchain is **ESP-IDF** (the CI workflow currently uses ESP-IDF 5.5.5) with the ESP32-S3 target. LVGL is used for the display UI. Arduino is not a separate language and is not the project's primary framework.
 
-1. Hardware abstraction / board bring-up
-2. Touch + display UI framework
-3. System UI foundation (Quick Controls + dedicated settings pages)
-4. RoundGames launcher
-5. Game interface/API
-6. Tic-Tac-Toe
-7. Web installer + release pipeline
-8. Additional games
+The automated workflow builds the firmware and prepares a combined binary for the browser installer. A successful source change or commit alone does **not** prove that the resulting firmware has built, deployed, or is being served by the installer; check the workflow and published manifest/binary before flashing.
 
-## System UI
+For board setup and current ESP-IDF instructions, see the [ESP-IDF documentation for ESP32-S3](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/).
 
-The system UI is deliberately hierarchical for the 466 × 466 display. A top-edge swipe down opens Quick Controls, which contains categories only. Each category opens its own dedicated page for controls such as brightness, volume/mute, dimming, language, clock/date, screensaver, themes and device/game information.
+## Web installer
 
-Normal brightness and dimmed brightness are separate settings. User preferences are persisted centrally, and games do not access hardware settings directly. Initial localization targets German, English and Dutch.
+The installer page is in `web-installer/index.html`. The intended workflow uses a supported Chromium-based browser and Web Serial/ESP Web Tools to flash the firmware over USB. The installer uses GitHub Pages for hosting and the build workflow to publish firmware metadata and binaries.
 
-See [`docs/system-ui.md`](docs/system-ui.md) for the interaction specification.
+Do not flash a build marked as ready until the matching CI build and deployed installer manifest/binary have been verified.
 
-## Installer
+## Development principles
 
-The repository contains the web-installer from the beginning. The installer is intended to use Web Serial / ESP Web Tools and GitHub Releases as the firmware distribution point.
+- Keep the existing RoundGames firmware and its device behavior as the foundation.
+- Integrate new games through the shared game manager and input/lifecycle conventions.
+- Preserve each game's graphics, animation timing, and intended controls as closely as practical.
+- Keep hardware access in shared platform code rather than duplicating it in individual games.
+- Prefer original assets and code. When third-party code or assets are intentionally introduced, review their licenses and retain the required notices.
+- Test game behavior on the physical device; a successful compile alone cannot verify frame pacing, touch behavior, or visual fidelity.
 
-The production installer will be hosted through GitHub Pages over HTTPS.
+## Documentation
 
-## Status
+- [Architecture](docs/architecture.md)
+- [System UI and interaction model](docs/system-ui.md)
 
-Early architecture / foundation.
+## Project status
+
+RoundGames is under active development. The repository contains working firmware and several game implementations, but the architecture, documentation, installer/release process, and game organization continue to evolve. Check the current source and CI status for the actual state rather than relying on older planning descriptions.
