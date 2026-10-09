@@ -507,19 +507,14 @@ static void build_info_page(void)
 static void launcher_game_action(int game_index, const char *name)
 {
     activity_reset();
+    clear_screen();
 
-    if (game_index >= 0 && game_index <= 3) {
-        clear_screen();
-        game_manager_start((game_id_t)game_index, lv_scr_act());
-    } else {
-        char msg[64];
-        snprintf(msg, sizeof(msg), "%s\n%s",
-                 name,
-                 tr("Test placeholder", "Test-Platzhalter"));
-        show_status(name, msg);
+    if (!game_manager_start_index(game_index, lv_scr_act())) {
+        show_status(name ? name : "RoundGames",
+                    tr("Could not start this game.",
+                       "Spiel konnte nicht gestartet werden."));
     }
 }
-
 static void build_launcher(void)
 {
     clear_screen();
