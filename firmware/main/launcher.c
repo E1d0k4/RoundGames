@@ -1,5 +1,6 @@
 #include "launcher.h"
 
+#include "game_manager.h"
 #include "input.h"
 
 #include <stdint.h>
@@ -9,35 +10,28 @@
 static int game_count = 0;
 static launcher_game_cb_t game_action = NULL;
 
-static const char *game_names[] = {
-    "Tic-Tac-Toe",
-    "Snake",
-    "Vegg",
-    "Orbit Breaker"
-};
-
 static void launcher_button_cb(lv_event_t *e)
 {
     int game_index = (int)(intptr_t)lv_event_get_user_data(e);
     if (game_action && game_index >= 0 && game_index < game_count) {
-        game_action(game_index, game_names[game_index]);
+        const char *name = game_manager_game_name_at(game_index);
+        if (name) {
+            game_action(game_index, name);
+        }
     }
 }
 
-void launcher_init(int count)
+void launcher_init(void)
 {
-    game_count = count;
-    if (game_count < 0) game_count = 0;
-    if (game_count > (int)(sizeof(game_names) / sizeof(game_names[0]))) {
-        game_count = sizeof(game_names) / sizeof(game_names[0]);
-    }
+    game_count = (int)game_manager_game_count();
     game_action = NULL;
 }
 
 void launcher_set_active(bool active)
 {
     int page_count = (game_count + GAMES_PER_PAGE - 1) / GAMES_PER_PAGE;
-    input_set_launcher_state(active, input_get_launcher_page(), page_count > 0 ? page_count : 1);
+    input_set_launcher_state(active, input_get_launcher_page(),
+                             page_count > 0 ? page_count : 1);
 }
 
 void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
@@ -65,24 +59,16 @@ void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
         lv_obj_set_style_bg_color(button, lv_color_hex(0x30343B), LV_PART_MAIN);
 
         lv_obj_t *icon = lv_label_create(button);
-        if (game_index == 0) {
-            lv_label_set_text(icon, "X   O");
-            lv_obj_set_style_text_color(icon, lv_color_hex(0x35E0FF), 0);
-        } else if (game_index == 1) {
-            lv_label_set_text(icon, "S");
-            lv_obj_set_style_text_color(icon, lv_color_hex(0x00C850), 0);
-        } else if (game_index == 2) {
-            lv_label_set_text(icon, "E");
-            lv_obj_set_style_text_color(icon, lv_color_hex(0xFF9F43), 0);
-        } else {
-            lv_label_set_text(icon, "O");
-            lv_obj_set_style_text_color(icon, lv_color_hex(0x50DFFF), 0);
-        }
+        const char *icon_text = game_manager_game_icon_at(game_index);
+        lv_label_set_text(icon, icon_text ? icon_text : "?");
+        lv_obj_set_style_text_color(
+            icon, lv_color_hex(game_manager_game_color_at(game_index)), 0);
         lv_obj_set_style_text_font(icon, &lv_font_montserrat_24, 0);
         lv_obj_align(icon, LV_ALIGN_TOP_MID, 0, 10);
 
         lv_obj_t *label = lv_label_create(button);
-        lv_label_set_text(label, game_names[game_index]);
+        const char *name = game_manager_game_name_at(game_index);
+        lv_label_set_text(label, name ? name : "Unknown game");
         lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
         lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -12);
         lv_obj_add_event_cb(button, launcher_button_cb, LV_EVENT_CLICKED,
@@ -95,7 +81,8 @@ void launcher_build(lv_obj_t *screen, launcher_game_cb_t game_cb)
         lv_obj_t *dot = lv_obj_create(screen);
         lv_obj_set_size(dot, selected ? 10 : 7, selected ? 10 : 7);
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(dot, selected ? lv_color_hex(0x20A050) : lv_color_hex(0x60656D), 0);
+        lv_obj_set_style_bg_color(
+            dot, selected ? lv_color_hex(0x20A050) : lv_color_hex(0x60656D), 0);
         lv_obj_set_style_border_width(dot, 0, 0);
         lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(dot, LV_OBJ_FLAG_GESTURE_BUBBLE);
