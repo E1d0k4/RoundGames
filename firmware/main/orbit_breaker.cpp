@@ -61,7 +61,21 @@ static float fire_timer = 0.0f;
 static qmi8658_dev_t motion_sensor;
 static bool motion_sensor_ready = false;
 static float filtered_gyro_z = 0.0f;
+static float gyro_z_bias = 0.0f;
+static float gyro_z_calibration_sum = 0.0f;
+static uint16_t gyro_z_calibration_samples = 0;
+static bool gyro_z_calibrated = false;
 static uint32_t last_motion_ms = 0;
+
+static void reset_motion_calibration()
+{
+    filtered_gyro_z = 0.0f;
+    gyro_z_bias = 0.0f;
+    gyro_z_calibration_sum = 0.0f;
+    gyro_z_calibration_samples = 0;
+    gyro_z_calibrated = false;
+    last_motion_ms = 0;
+}
 
 static lv_color_t ring_color(int ring)
 {
@@ -257,6 +271,7 @@ static void start_game(GameMode new_mode)
     combo = 0;
     time_left = 90.0f;
     paddle_angle = PI_F * 0.5f;
+    reset_motion_calibration();
     load_level();
     show_game_visuals(true);
     float rr = PADDLE_R - BALL_R - 3.0f;
@@ -286,6 +301,7 @@ static void lose_ball()
         if (lives <= 0) { game_over(); return; }
     }
     wide_timer = slow_timer = fire_timer = 0.0f;
+    reset_motion_calibration();
     state = READY;
     state_timer = 1.1f;
     float rr = PADDLE_R - BALL_R - 3.0f;
@@ -612,13 +628,24 @@ static void update_motion_control(void)
     last_motion_ms = now;
     if (dt < 0.001f || dt > 0.08f) dt = 0.02f;
 
-    /* Rotate the device like a steering wheel: integrate Z-axis gyro rate.
-       Let the paddle travel around the full ring so the player can reach
-       the ball wherever it goes. A small dead zone suppresses sensor noise. */
-    float rate = data.gyroZ;
-    if (fabsf(rate) < 0.045f) rate = 0.0f;
-    filtered_gyro_z += (rate - filtered_gyro_z) * 0.55f;
-    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt * 5.0f);
+    /* Calibrate the Z gyro while the ball is waiting to launch. A tiny
+       zero-rate bias otherwise accumulates because paddle_angle integrates
+       gyro rate, eventually making the paddle drift all the way around. */
+    float raw_rate = data.gyroZ;
+    if (state == READY && !gyro_z_calibrated) {
+        gyro_z_calibration_sum += raw_rate;
+        ++gyro_z_calibration_samples;
+        if (gyro_z_calibration_samples >= 40) {
+            gyro_z_bias = gyro_z_calibration_sum / gyro_z_calibration_samples;
+            gyro_z_calibrated = true;
+        }
+    }
+    float rate = raw_rate - gyro_z_bias;
+    if (fabsf(rate) < 0.035f) rate = 0.0f;
+    filtered_gyro_z += (rate - filtered_gyro_z) * 0.35f;
+    /* Preserve full 360-degree steering, but avoid amplifying tiny gyro
+       offsets into visible paddle movement. */
+    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt * 4.0f);
     render_paddle();
 }
 
