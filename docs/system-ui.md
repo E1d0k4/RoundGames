@@ -1,4 +1,6 @@
-# RoundGames System UI
+# RoundGames System UI — design specification
+
+> This document describes the intended interaction model, not a guarantee that every listed control is implemented or verified in the current firmware. Check the current source and test on the device before treating a behavior as complete.
 
 The system UI is intentionally hierarchical. The 466x466 display must never be overloaded with every setting at once.
 
