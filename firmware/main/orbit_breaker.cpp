@@ -456,6 +456,8 @@ static void update_game(float dt)
     }
 }
 
+static void screen_clicked_cb(lv_event_t *e);
+
 static void ignore_game_gesture(lv_dir_t dir)
 {
     LV_UNUSED(dir);
@@ -574,7 +576,10 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_radius(ball_obj, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_border_width(ball_obj, 0, 0);
     lv_obj_set_style_bg_color(ball_obj, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_CLICKABLE);
+    /* The ball must receive its own click: a non-clickable child does not
+       reliably bubble LV_EVENT_CLICKED to the screen on every touch path. */
+    lv_obj_add_flag(ball_obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(ball_obj, screen_clicked_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_flag(ball_obj, LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -642,10 +647,10 @@ static void update_motion_control(void)
     }
     float rate = raw_rate - gyro_z_bias;
     if (fabsf(rate) < 0.035f) rate = 0.0f;
-    filtered_gyro_z += (rate - filtered_gyro_z) * 0.35f;
-    /* Preserve full 360-degree steering, but avoid amplifying tiny gyro
-       offsets into visible paddle movement. */
-    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt * 4.0f);
+    /* Gyro data is already in radians/second: integrate it at 1:1.
+       Multiplying the rate made quick turns overshoot and feel unstable. */
+    filtered_gyro_z += (rate - filtered_gyro_z) * 0.80f;
+    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt);
     render_paddle();
 }
 
