@@ -5,6 +5,7 @@
 #include "tic_tac_toe.h"
 #include "snake.h"
 #include "vegg_game.h"
+#include "orbit_breaker.h"
 
 static game_id_t current_game = GAME_ID_NONE;
 static void (*exit_callback)(void) = NULL;
@@ -53,6 +54,11 @@ bool game_manager_start(game_id_t game_id, lv_obj_t *screen)
             started = true;
             break;
 
+        case GAME_ID_ORBIT_BREAKER:
+            orbit_breaker_open(screen);
+            started = true;
+            break;
+
         default:
             return false;
     }
@@ -74,6 +80,8 @@ void game_manager_stop(void)
         snake_stop();
     } else if (current_game == GAME_ID_VEGG) {
         vegg_stop();
+    } else if (current_game == GAME_ID_ORBIT_BREAKER) {
+        orbit_breaker_stop();
     }
 
     current_game = GAME_ID_NONE;
