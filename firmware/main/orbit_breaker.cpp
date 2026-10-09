@@ -77,8 +77,6 @@ static float angle_diff(float a, float b)
 }
 
 static float radius_of(float x, float y) { return sqrtf(x * x + y * y); }
-static float brick_inner(int ring) { return INNER_R + ring * RING_STEP + 1.5f; }
-static float brick_outer(int ring) { return INNER_R + (ring + 1) * RING_STEP - 1.5f; }
 static float paddle_half_width(void) { return wide_timer > 0.0f ? 0.42f : 0.27f; }
 static float ball_speed(void) { return fminf(190.0f + 12.0f * level, 340.0f) * (slow_timer > 0.0f ? 0.7f : 1.0f); }
 static int multiplier(void) { return 1 + (combo / 3 > 4 ? 4 : combo / 3); }
@@ -535,7 +533,8 @@ static void build_ui(lv_obj_t *target)
             lv_obj_set_style_pad_all(arc, 0, 0);
             lv_obj_set_style_bg_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);
             lv_obj_set_style_border_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);
-            lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_clear_flag(arc, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_add_flag(arc, LV_OBJ_FLAG_HIDDEN);
             brick_arc[r][s] = arc;
         }
@@ -553,14 +552,16 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_bg_opa(paddle_arc, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_opa(paddle_arc, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_border_opa(paddle_arc, LV_OPA_TRANSP, LV_PART_KNOB);
-    lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_SCROLLABLE);
 
     ball_obj = lv_obj_create(screen);
     lv_obj_set_size(ball_obj, (int)(BALL_R * 2), (int)(BALL_R * 2));
     lv_obj_set_style_radius(ball_obj, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_border_width(ball_obj, 0, 0);
     lv_obj_set_style_bg_color(ball_obj, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_SCROLLABLE);
 
     center_panel = lv_obj_create(screen);
     lv_obj_set_size(center_panel, 180, 130);
