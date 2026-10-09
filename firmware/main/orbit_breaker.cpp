@@ -5,8 +5,10 @@
 #include <string.h>
 
 #include "esp_random.h"
+extern "C" {
 #include "input.h"
 #include "theme.h"
+}
 
 namespace {
 constexpr int SCREEN_SIZE = 466;
