@@ -35,7 +35,7 @@ The current firmware code is primarily located in `firmware/main/`, not in separ
 - Vegg: `vegg_game.cpp/.h`, with `vegg_sprites.h`
 - Orbit Breaker: `orbit_breaker.cpp/.h`
 
-The game manager currently dispatches these four games. The launcher currently exposes only the four implemented games; future games should be registered in the launcher and game manager together.
+The game manager currently owns the registry for these four games, including their IDs, launcher names, icons, colors, and start/stop functions. The launcher reads this registry instead of maintaining a second game list. To add a game, add one registry entry and its source/header to `firmware/main/CMakeLists.txt`; the launcher count and labels then follow automatically.
 
 The folders under `firmware/components/` currently contain component-level README files, not all of the corresponding service implementations as independent ESP-IDF components. Likewise, `firmware/games/tictactoe/` is currently only a placeholder directory. The repository should be reorganized incrementally rather than pretending the proposed structure already exists.
 
@@ -43,7 +43,7 @@ The folders under `firmware/components/` currently contain component-level READM
 
 Games are selected and started by `game_manager.c`. The manager calls the relevant game's open/stop functions and coordinates the active-game state with input handling and the screensaver. New games should use this shared lifecycle rather than independently initializing the board or taking over the display driver.
 
-Before adding a game, inspect the existing game headers and manager. Add the source to `firmware/main/CMakeLists.txt`, add an explicit game ID and start/stop handling, and update launcher labels/count consistently. Do not add a launcher label alone and describe it as a working game.
+Before adding a game, inspect the existing game headers and manager. Add the source to `firmware/main/CMakeLists.txt` and add one complete entry to the game registry in `game_manager.c`, with its ID, name, icon, color, open function, and stop function. The launcher obtains its metadata and count from that registry; do not create a second list of game names.
 
 ## Intended architecture
 
