@@ -1,279 +1,96 @@
 # RoundGames Architecture
 
-## Goal
+This document distinguishes the **current implementation** from the intended direction. It must not describe planned behavior as if it were already implemented.
 
-RoundGames must behave like a small console:
+## Project target
 
-- one firmware image
-- one launcher
-- multiple independent games
-- shared display/touch/input services
-- games isolated in their own directories
-- new games added without rewriting the launcher
+RoundGames is a multi-game firmware for the Waveshare ESP32-S3-Touch-AMOLED-1.75, using ESP-IDF, C/C++, and LVGL. The repository's CI currently builds with ESP-IDF 5.5.5 and targets ESP32-S3.
 
-## Recommended stack
+Board variants must not be assumed interchangeable without checking display, touch, power-management, and peripheral compatibility.
 
-Use ESP-IDF with LVGL 9.
+## Current implementation
 
-Reasoning:
+The current firmware code is primarily located in `firmware/main/`, not in separate game directories.
 
-- Waveshare currently validates ESP-IDF 5.5.5 and 6.0.2 for this board.
-- The official board examples already cover the CO5300 AMOLED, CST9217 touch and LVGL.
-- A component-based ESP-IDF layout maps well to a reusable game platform.
+### Shared firmware modules
 
-Arduino support can remain a secondary development option, but the main RoundGames firmware should have one canonical toolchain.
+- `main.c`: application startup, launcher/settings UI and system-level coordination
+- `display.c/.h`: display integration
+- `input.c/.h`: touch, gestures and game/system input routing
+- `launcher.c/.h`: paged game launcher
+- `game_manager.c/.h`: game start/stop lifecycle dispatch
+- `settings.c/.h`: persisted settings
+- `language.c/.h`: language selection and translation helpers
+- `theme.c/.h`: theme selection
+- `screensaver.c/.h`: inactivity/screensaver behavior
+- `clock.c/.h`: clock support
+- `audio.c/.h`: audio controls/integration
+- `power_button.c/.h`: power-button behavior
+- `settings_ui.c/.h`: reusable settings UI helpers
 
-## Layers
+### Current game implementations
 
-### 1. Board layer
+- Tic-Tac-Toe: `tic_tac_toe.c/.h`
+- Snake: `snake.c/.h`
+- Vegg: `vegg_game.cpp/.h`, with `vegg_sprites.h`
+- Orbit Breaker: `orbit_breaker.cpp/.h`
 
-Responsible for:
+The game manager currently dispatches these four games. The launcher also contains placeholder labels for additional slots; a visible placeholder is not an implemented game.
 
-- display initialization
-- touch initialization
-- power / brightness
-- optional SD card
-- optional audio
-- board-specific GPIO/I2C/QSPI handling
+The folders under `firmware/components/` currently contain component-level README files, not all of the corresponding service implementations as independent ESP-IDF components. Likewise, `firmware/games/tictactoe/` is currently only a placeholder directory. The repository should be reorganized incrementally rather than pretending the proposed structure already exists.
 
-No game should access raw board pins directly.
+## Current game lifecycle
 
-### 2. Platform layer
+Games are selected and started by `game_manager.c`. The manager calls the relevant game's open/stop functions and coordinates the active-game state with input handling and the screensaver. New games should use this shared lifecycle rather than independently initializing the board or taking over the display driver.
 
-Shared services:
+Before adding a game, inspect the existing game headers and manager. Add the source to `firmware/main/CMakeLists.txt`, add an explicit game ID and start/stop handling, and update launcher labels/count consistently. Do not add a launcher label alone and describe it as a working game.
 
-- screen manager
-- touch/input manager
-- navigation
-- settings
-- persistent storage
-- game registry
-- common UI widgets
-- sound/haptics abstraction if added later
+## Intended architecture
 
-### 3. Launcher
+The target architecture is one firmware image containing:
 
-The launcher displays installed/compiled games and starts a selected game.
+1. Board-specific display, touch, power and peripheral integration.
+2. Shared services for input, settings, localization, clock, audio, theme and screensaver.
+3. A launcher and game manager.
+4. Independent games that use shared lifecycle and input conventions.
 
-Initial launcher:
+A later refactor may move services and game sources into separate ESP-IDF components/directories. Such a move should be incremental and build-tested; it is not a prerequisite for every new game.
 
-- RoundGames title
-- Tic-Tac-Toe tile
-- future-game placeholders only in development, not on the production UI
-- settings entry
-- about/version entry
+## Input and system UI
 
-### 4. Game API
+The intended interaction model reserves the top-edge swipe-down gesture for system controls. System gestures should be handled centrally and should not be consumed accidentally by games. The power button has separate short-press and long-press behavior defined in the firmware.
 
-Every game follows the same lifecycle:
+The detailed intended interaction specification is in [System UI](system-ui.md). That document is a design reference; verify the current implementation before assuming every listed control or option is complete.
 
-```text
-init()
-enter()
-update()
-draw()
-handle_input()
-pause()
-exit()
-deinit()
-```
+## Settings and persistence
 
-The exact C API will be finalized before implementing the first game so Tic-Tac-Toe becomes the reference implementation.
+Platform preferences should be read and written through the shared settings layer, not by each game independently. When adding settings, keep default values, bounds checking, persistence, and UI updates consistent. Any changes to persisted settings should consider existing devices that already have saved values.
 
-A game should not own the display driver or touch driver.
+## Build and web installer
 
-## Game directory rule
+- Firmware project: `firmware/`
+- ESP-IDF component registration: `firmware/main/CMakeLists.txt`
+- Default target/configuration: `firmware/sdkconfig.defaults`
+- Browser installer: `web-installer/index.html`
+- Installer manifest: `web-installer/manifest.json`
+- Build/deployment automation: `.github/workflows/`
 
-Every game gets its own directory:
+The main build workflow compiles the ESP32-S3 firmware, creates a merged binary, prepares versioned installer metadata, deploys the Pages artifact, and checks that the published manifest and binary match the commit being built. Always inspect the actual workflow run and deployed installer after changes; a source commit alone does not establish that a flashable build is available.
 
-```text
-firmware/games/<game-id>/
-```
+## Development and release rules
 
-Example:
+- Keep the existing RoundGames firmware and system behavior as the foundation.
+- Preserve original game rules, artwork, animation timing and intended controls where possible.
+- Keep hardware-specific work in shared platform code.
+- Prefer original code and assets. Review and preserve notices for any deliberately added third-party material.
+- Verify compile/build success before calling a change firmware-ready.
+- For installer releases, verify the published manifest and binary correspond to the intended commit.
+- Test on the physical device for rendering, touch, timing, power behavior and other hardware-dependent behavior; compile success cannot prove these.
 
-```text
-firmware/games/
-├── tictactoe/
-├── snake/
-├── 2048/
-└── breakout/
-```
+## Future work (not a claim of current implementation)
 
-Each game contains its own:
-
-- source
-- game metadata
-- assets
-- tests
-- README
-
-Shared code belongs in platform/components, never duplicated into games.
-
-## Tic-Tac-Toe modes
-
-Initial design:
-
-### Player count
-
-- 1 Player vs AI
-- 2 Players local
-
-### Game modes
-
-The first implementation should support:
-
-- Classic 3×3
-- Best-of-3 match
-- Endless/local score mode
-
-The mode system must be data-driven enough that additional modes can be added without rewriting touch handling.
-
-### AI levels
-
-For 1-player mode:
-
-- Easy
-- Normal
-- Hard
-
-Hard can use minimax because the 3×3 game state is tiny.
-
-## Persistence
-
-Persist only platform/game data that needs to survive reboot:
-
-- settings
-- selected preferences
-- optional Tic-Tac-Toe statistics
-
-Use a shared storage service so games do not manipulate NVS directly.
-
-## Web installer
-
-The installer consists of:
-
-- `web-installer/index.html`
-- `web-installer/manifest.json`
-- GitHub Pages hosting
-- GitHub Actions firmware build
-- GitHub Release firmware assets
-
-The browser installer must never require users to install Arduino IDE, ESP-IDF or drivers.
-
-## Release flow
-
-```text
-git push
-   ↓
-GitHub Actions
-   ↓
-build + test
-   ↓
-firmware binaries
-   ↓
-GitHub Release
-   ↓
-web-installer manifest
-   ↓
-browser → USB → ESP32-S3
-```
-
-## Compatibility
-
-The first target is:
-
-- Waveshare ESP32-S3-Touch-AMOLED-1.75, standard version
-
-Board variants such as 1.75-B and 1.75-G should not silently be treated as identical. Variant-specific support can be added later.
-
-
-## System UI and interaction model
-
-The system UI is intentionally hierarchical for the 466x466 display. The Quick Controls page contains categories and compact current values only; individual controls live on dedicated full-screen subpages.
-
-### Reserved system gesture
-
-A swipe from the top edge downward opens Quick Controls. This gesture is reserved by the platform and is dispatched before active-game input.
-
-Input priority:
-
-1. system/emergency controls where applicable
-2. top-edge swipe-down
-3. screensaver wake/exit
-4. system UI controls
-5. active game input
-
-### Quick Controls
-
-Quick Controls contains:
-
-- Brightness
-- Sound
-- Dimming
-- Language
-- Clock & Date
-- Screensaver
-- Theme
-- Information
-
-Tapping a category opens its own page. For example, Brightness opens a page with a slider plus large +/- controls; Sound opens a volume page with a slider and mute/unmute action.
-
-### Settings
-
-Settings are owned by a central Settings Service and persisted through NVS. UI code and games never access NVS directly.
-
-Initial settings include:
-
-- normal brightness
-- volume and mute
-- dimming enabled, timeout and dimming brightness
-- language
-- 12/24-hour clock preference
-- NTP synchronization
-- screensaver enabled, timeout and theme
-- system theme
-
-### Localization
-
-Initial platform languages:
-
-- German
-- English
-- Dutch
-
-All user-facing system strings go through localization. Missing translations fall back to English.
-
-### Clock, dimming and screensaver
-
-The PCF85063 is accessed through a shared RTC service. Optional NTP synchronization is handled by the platform.
-
-Dimming has its own configurable brightness, independent from normal brightness. The screensaver starts after configurable inactivity and can use multiple clock/screensaver themes. Waking the screensaver restores the previous application without resetting game state.
-
-### Information page
-
-The Information page can show:
-
-- RoundGames and firmware version
-- Git commit and build date
-- board target
-- ESP-IDF and LVGL versions
-- Flash and PSRAM information
-- installed game IDs and versions
-
-### Service boundaries
-
-The intended platform components are:
-
-- system_ui
-- settings
-- input
-- localization
-- rtc_service
-- audio_service
-- display_service
-- screensaver
-- theme
-- version
-
-Hardware access stays behind these services. This keeps individual games small and prevents settings, gestures or board-specific code from leaking into game implementations.
+- Move game sources into independent directories or components without breaking builds.
+- Add automated host-side tests for game logic where practical.
+- Keep launcher metadata synchronized with registered games instead of maintaining duplicate lists.
+- Improve version/build information and release verification.
+- Consider a PC simulator only as a separate, explicitly scoped project; it is not currently part of this repository's firmware.
