@@ -212,8 +212,10 @@ static void launch_ball()
 static void show_game_visuals(bool playing)
 {
     if (center_panel) {
-        if (playing) lv_obj_add_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
-        else lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
+        if (playing && state != PAUSED && state != GAME_OVER && state != LEVEL_DONE)
+            lv_obj_add_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
     }
     for (int i = 0; i < 3; ++i) {
         if (mode_buttons[i]) {
@@ -260,6 +262,7 @@ static void game_over()
 {
     state = GAME_OVER;
     if (score > best_score[mode]) best_score[mode] = score;
+    show_game_visuals(true);
     update_hud();
 }
 
@@ -561,7 +564,7 @@ static void build_ui(lv_obj_t *target)
     lv_obj_set_style_bg_opa(center_panel, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(center_panel, 0, 0);
     lv_obj_set_style_radius(center_panel, 18, 0);
-    lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
     score_label = lv_label_create(center_panel);
     lv_obj_set_style_text_font(score_label, &lv_font_montserrat_24, 0);
