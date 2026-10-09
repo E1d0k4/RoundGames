@@ -20,7 +20,7 @@ constexpr int SCREEN_SIZE = 466;
 constexpr int CX = 233;
 constexpr int CY = 233;
 constexpr int RINGS = 7;
-constexpr int SEGMENTS = 18;
+constexpr int SEGMENTS = 12;
 constexpr float INNER_R = 62.0f;
 constexpr float RING_STEP = 20.0f;
 constexpr float PADDLE_R = 220.0f;
@@ -91,7 +91,7 @@ static float angle_diff(float a, float b)
 
 static float radius_of(float x, float y) { return sqrtf(x * x + y * y); }
 static float paddle_half_width(void) { return wide_timer > 0.0f ? 0.42f : 0.27f; }
-static float ball_speed(void) { return fminf(300.0f + 18.0f * level, 520.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
+static float ball_speed(void) { return fminf(480.0f + 24.0f * level, 760.0f) * (slow_timer > 0.0f ? 0.82f : 1.0f); }
 static int multiplier(void) { return 1 + (combo / 3 > 4 ? 4 : combo / 3); }
 
 static void update_hud()
@@ -399,7 +399,7 @@ static void update_game(float dt)
     float sp = radius_of(vx, vy);
     float target = ball_speed();
     if (sp > 0.1f) { vx = vx / sp * target; vy = vy / sp * target; }
-    const int substeps = 3;
+    const int substeps = 6;
     float h = dt / substeps;
     for (int k = 0; k < substeps && state == PLAYING; ++k) {
         float ox = bx, oy = by;
@@ -434,7 +434,6 @@ static void update_game(float dt)
     }
     render_paddle();
     render_ball();
-    update_hud();
     if (mode != ENDLESS && destroyable == 0) {
         score += 100 * level + (mode == TIME_ATTACK ? 0 : lives * 50);
         state = LEVEL_DONE;
@@ -614,7 +613,7 @@ static void update_motion_control(void)
     float rate = data.gyroZ;
     if (fabsf(rate) < 0.045f) rate = 0.0f;
     filtered_gyro_z += (rate - filtered_gyro_z) * 0.55f;
-    paddle_angle -= filtered_gyro_z * dt * 2.8f;
+    paddle_angle -= filtered_gyro_z * dt * 5.0f;
     if (paddle_angle < PADDLE_MIN_ANGLE) paddle_angle = PADDLE_MIN_ANGLE;
     if (paddle_angle > PADDLE_MAX_ANGLE) paddle_angle = PADDLE_MAX_ANGLE;
     render_paddle();
@@ -627,7 +626,7 @@ static void tick(lv_timer_t *t)
     uint32_t now = lv_tick_get();
     float dt = last_ms == 0 ? 0.016f : (float)(now - last_ms) / 1000.0f;
     last_ms = now;
-    if (dt > 0.05f) dt = 0.05f;
+    if (dt > 0.10f) dt = 0.10f;
     update_motion_control();
     if (state == PLAYING || state == READY || state == LEVEL_DONE) {
         update_game(dt);
