@@ -33,11 +33,10 @@ static lv_obj_t *center_panel = nullptr;
 static lv_obj_t *title_label = nullptr;
 static lv_obj_t *score_label = nullptr;
 static lv_obj_t *detail_label = nullptr;
-static lv_obj_t *pause_label = nullptr;
+static lv_obj_t *mode_buttons[3] = {nullptr, nullptr, nullptr};
 static uint8_t bricks[RINGS][SEGMENTS] = {};
 static GameState state = MENU;
 static GameMode mode = CLASSIC;
-static int selected_mode = 0;
 static int level = 1;
 static int lives = 3;
 static int combo = 0;
@@ -52,9 +51,6 @@ static float state_timer = 0.0f;
 static float wide_timer = 0.0f;
 static float slow_timer = 0.0f;
 static float fire_timer = 0.0f;
-static bool touch_seen = false;
-static uint32_t best_saved[3] = {};
-static void (*unused_exit_cb)(void) = nullptr;
 
 static lv_color_t ring_color(int ring)
 {
@@ -213,6 +209,34 @@ static void launch_ball()
     update_hud();
 }
 
+static void show_game_visuals(bool playing)
+{
+    if (center_panel) {
+        if (playing) lv_obj_add_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
+    }
+    for (int i = 0; i < 3; ++i) {
+        if (mode_buttons[i]) {
+            if (playing) lv_obj_add_flag(mode_buttons[i], LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_clear_flag(mode_buttons[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    for (int r = 0; r < RINGS; ++r) {
+        for (int s = 0; s < SEGMENTS; ++s) {
+            if (playing) render_brick(r, s);
+            else if (brick_arc[r][s]) lv_obj_add_flag(brick_arc[r][s], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (ball_obj) {
+        if (playing) lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(ball_obj, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (paddle_arc) {
+        if (playing) lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_HIDDEN);
+        else lv_obj_add_flag(paddle_arc, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static void start_game(GameMode new_mode)
 {
     mode = new_mode;
@@ -223,6 +247,7 @@ static void start_game(GameMode new_mode)
     time_left = 90.0f;
     paddle_angle = PI_F * 0.5f;
     load_level();
+    show_game_visuals(true);
     float rr = PADDLE_R - BALL_R - 3.0f;
     bx = cosf(paddle_angle) * rr;
     by = sinf(paddle_angle) * rr;
@@ -412,7 +437,7 @@ static void mode_button_cb(lv_event_t *e)
 
 static void screen_pressing_cb(lv_event_t *e)
 {
-    LV_UNUSED(e);
+    if (lv_event_get_target(e) != screen) return;
     if (state != PLAYING && state != READY && state != PAUSED) return;
     lv_indev_t *indev = lv_indev_active();
     if (!indev) return;
@@ -422,14 +447,13 @@ static void screen_pressing_cb(lv_event_t *e)
     float dy = (float)p.y - CY;
     if (sqrtf(dx * dx + dy * dy) > 48.0f) {
         paddle_angle = wrap_angle(atan2f(dy, dx));
-        touch_seen = true;
         render_paddle();
     }
 }
 
 static void screen_clicked_cb(lv_event_t *e)
 {
-    LV_UNUSED(e);
+    if (lv_event_get_target(e) != screen) return;
     if (state == READY) launch_ball();
     else if (state == PLAYING) {
         lv_indev_t *indev = lv_indev_active();
@@ -445,15 +469,9 @@ static void screen_clicked_cb(lv_event_t *e)
         update_hud();
     }
     if (state == MENU) {
-        lv_obj_clear_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
-        for (int r = 0; r < RINGS; ++r)
-            for (int s = 0; s < SEGMENTS; ++s) lv_obj_add_flag(brick_arc[r][s], LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(ball_obj, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(paddle_arc, LV_OBJ_FLAG_HIDDEN);
-    } else if (state == PLAYING || state == READY) {
-        lv_obj_add_flag(center_panel, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(ball_obj, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(paddle_arc, LV_OBJ_FLAG_HIDDEN);
+        show_game_visuals(false);
+    } else if (state == PLAYING || state == READY || state == PAUSED || state == GAME_OVER || state == LEVEL_DONE) {
+        show_game_visuals(true);
         render_all();
     }
     update_hud();
@@ -462,6 +480,7 @@ static void screen_clicked_cb(lv_event_t *e)
 static void create_mode_button(const char *label, int y, GameMode m)
 {
     lv_obj_t *button = lv_button_create(screen);
+    mode_buttons[(int)m] = button;
     lv_obj_set_size(button, 220, 52);
     lv_obj_align(button, LV_ALIGN_TOP_MID, 0, y);
     lv_obj_set_style_bg_color(button, lv_color_hex(m == CLASSIC ? 0x244B75 : (m == ENDLESS ? 0x245E49 : 0x69406F)), LV_PART_MAIN);
@@ -564,6 +583,7 @@ static void build_ui(lv_obj_t *target)
     lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
 
     state = MENU;
+    show_game_visuals(false);
     update_hud();
 }
 
@@ -604,5 +624,6 @@ extern "C" void orbit_breaker_stop(void)
     title_label = nullptr;
     score_label = nullptr;
     detail_label = nullptr;
+    memset(mode_buttons, 0, sizeof(mode_buttons));
     memset(brick_arc, 0, sizeof(brick_arc));
 }
