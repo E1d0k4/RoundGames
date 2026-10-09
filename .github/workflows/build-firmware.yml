@@ -115,7 +115,7 @@ jobs:
           fi
 
           BASE_URL="https://e1d0k4.github.io/RoundGames"
-          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \\
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \
             "${BASE_URL}/manifest.json" -o /tmp/roundgames-manifest.json
           echo "Published manifest:"
           cat /tmp/roundgames-manifest.json
@@ -129,7 +129,7 @@ jobs:
             exit 1
           fi
 
-          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \\
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \
             "${BASE_URL}/${BIN_PATH#./}" -o /tmp/roundgames-published.bin
           test -s /tmp/roundgames-published.bin
           cmp firmware/roundgames-full.bin /tmp/roundgames-published.bin
