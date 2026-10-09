@@ -633,24 +633,31 @@ static void update_motion_control(void)
     last_motion_ms = now;
     if (dt < 0.001f || dt > 0.08f) dt = 0.02f;
 
-    /* Calibrate the Z gyro while the ball is waiting to launch. A tiny
-       zero-rate bias otherwise accumulates because paddle_angle integrates
-       gyro rate, eventually making the paddle drift all the way around. */
+    /* Calibrate at rest before launch, then keep tracking slow zero-rate
+       drift whenever the sensor is nearly still. */
     float raw_rate = data.gyroZ;
     if (state == READY && !gyro_z_calibrated) {
         gyro_z_calibration_sum += raw_rate;
         ++gyro_z_calibration_samples;
-        if (gyro_z_calibration_samples >= 40) {
+        if (gyro_z_calibration_samples >= 160) {
             gyro_z_bias = gyro_z_calibration_sum / gyro_z_calibration_samples;
             gyro_z_calibrated = true;
         }
     }
     float rate = raw_rate - gyro_z_bias;
-    if (fabsf(rate) < 0.035f) rate = 0.0f;
-    /* Gyro data is already in radians/second: integrate it at 1:1.
-       Multiplying the rate made quick turns overshoot and feel unstable. */
-    filtered_gyro_z += (rate - filtered_gyro_z) * 0.80f;
-    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt);
+
+    /* If rotation is very slow, treat it as sensor bias and let the bias
+       follow gradually. This prevents accumulated drift without suppressing
+       deliberate, faster turns. */
+    if (fabsf(rate) < 0.10f) {
+        gyro_z_bias += rate * 0.0025f;
+        rate = 0.0f;
+    }
+    if (fabsf(rate) < 0.025f) rate = 0.0f;
+
+    /* Restore some steering sensitivity while retaining a responsive filter. */
+    filtered_gyro_z += (rate - filtered_gyro_z) * 0.72f;
+    paddle_angle = wrap_angle(paddle_angle - filtered_gyro_z * dt * 2.2f);
     render_paddle();
 }
 
