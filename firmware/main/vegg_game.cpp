@@ -278,7 +278,7 @@ static void jump(void)
         jump_v = 820.0f;
         state = VEGG_JUMPING;
     } else if (state == VEGG_JUMPING && jump_v > 0) {
-        jump_v = -1500.0f;
+        jump_v = -1050.0f;
     }
 }
 
@@ -302,7 +302,7 @@ static void tick(lv_timer_t *t)
 
     const uint32_t now = lv_tick_get();
     float dt = (now - last_tick) / 1000.0f;
-    if (dt > 0.05f) dt = 0.05f;
+    if (dt > 0.08f) dt = 0.08f;
     last_tick = now;
 
     if (state == VEGG_GAME_OVER) {
@@ -364,9 +364,10 @@ static void build_scene(void)
     lv_obj_set_size(world,WORLD_W,WORLD_H);
     lv_obj_set_pos(world,0,0);
     lv_obj_clear_flag(world,LV_OBJ_FLAG_CLICKABLE);
-    update_world_image();
     render_base();
+    memcpy(world_base_pixels, world_pixels, world_bytes);
     render_world();
+    update_world_image();
 
     score_label=lv_label_create(screen);
     lv_obj_set_style_text_font(score_label,&lv_font_montserrat_22,0);
@@ -447,7 +448,7 @@ void vegg_open(lv_obj_t *new_screen)
 
     build_scene();
     update_labels();
-    timer = lv_timer_create(tick, 40, NULL);
+    timer = lv_timer_create(tick, 20, NULL);
 }
 
 void vegg_stop(void)
