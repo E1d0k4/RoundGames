@@ -120,8 +120,8 @@ jobs:
           echo "Published manifest:"
           cat /tmp/roundgames-manifest.json
 
-          ACTUAL_VERSION="$(jq -r '.version' /tmp/roundgames-manifest.json)"
-          BIN_PATH="$(jq -r '.builds[0].parts[0].path' /tmp/roundgames-manifest.json)"
+          ACTUAL_VERSION="$(python3 -c 'import json; print(json.load(open("/tmp/roundgames-manifest.json"))["version"])')"
+          BIN_PATH="$(python3 -c 'import json; print(json.load(open("/tmp/roundgames-manifest.json"))["builds"][0]["parts"][0]["path"])')"
           EXPECTED_BIN="./roundgames-${EXPECTED_VERSION}.bin"
           if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" || "$BIN_PATH" != "$EXPECTED_BIN" ]]; then
             echo "Published manifest is stale or points to the wrong firmware."
