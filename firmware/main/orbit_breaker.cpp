@@ -5,6 +5,11 @@
 #include <string.h>
 
 #include "esp_random.h"
+#include "bsp/esp-bsp.h"
+#ifdef M_PI
+#undef M_PI
+#endif
+#include "qmi8658.h"
 extern "C" {
 #include "input.h"
 #include "theme.h"
@@ -53,6 +58,9 @@ static float state_timer = 0.0f;
 static float wide_timer = 0.0f;
 static float slow_timer = 0.0f;
 static float fire_timer = 0.0f;
+static qmi8658_dev_t motion_sensor;
+static bool motion_sensor_ready = false;
+static float filtered_tilt_angle = PI_F * 0.5f;
 
 static lv_color_t ring_color(int ring)
 {
@@ -445,18 +453,8 @@ static void mode_button_cb(lv_event_t *e)
 
 static void screen_pressing_cb(lv_event_t *e)
 {
-    if (lv_event_get_target(e) != screen) return;
-    if (state != PLAYING && state != READY && state != PAUSED) return;
-    lv_indev_t *indev = lv_indev_active();
-    if (!indev) return;
-    lv_point_t p;
-    lv_indev_get_point(indev, &p);
-    float dx = (float)p.x - CX;
-    float dy = (float)p.y - CY;
-    if (sqrtf(dx * dx + dy * dy) > 48.0f) {
-        paddle_angle = wrap_angle(atan2f(dy, dx));
-        render_paddle();
-    }
+    /* Paddle is controlled by tilting the device, never by touch. */
+    LV_UNUSED(e);
 }
 
 static void screen_clicked_cb(lv_event_t *e)
@@ -464,13 +462,8 @@ static void screen_clicked_cb(lv_event_t *e)
     if (lv_event_get_target(e) != screen) return;
     if (state == READY) launch_ball();
     else if (state == PLAYING) {
-        lv_indev_t *indev = lv_indev_active();
-        if (indev) {
-            lv_point_t p;
-            lv_indev_get_point(indev, &p);
-            float dx = (float)p.x - CX, dy = (float)p.y - CY;
-            if (sqrtf(dx * dx + dy * dy) < 48.0f) state = PAUSED;
-        }
+        /* Touch does not steer or pause the running game. */
+        return;
     } else if (state == PAUSED) state = PLAYING;
     else if (state == GAME_OVER || state == LEVEL_DONE) {
         state = MENU;
@@ -599,6 +592,24 @@ static void build_ui(lv_obj_t *target)
     update_hud();
 }
 
+static void update_motion_control(void)
+{
+    if (!motion_sensor_ready || (state != PLAYING && state != READY)) return;
+    bool ready = false;
+    if (qmi8658_is_data_ready(&motion_sensor, &ready) != ESP_OK || !ready) return;
+    qmi8658_data_t data;
+    if (qmi8658_read_sensor_data(&motion_sensor, &data) != ESP_OK) return;
+    const float tilt_x = data.accelX;
+    const float tilt_y = data.accelY;
+    if (fabsf(tilt_x) + fabsf(tilt_y) < 1.4f) return;
+    float target = wrap_angle(atan2f(-tilt_y, tilt_x));
+    float delta = angle_diff(target, filtered_tilt_angle);
+    if (fabsf(delta) < 0.035f) return;
+    filtered_tilt_angle = wrap_angle(filtered_tilt_angle + delta * 0.28f);
+    paddle_angle = filtered_tilt_angle;
+    render_paddle();
+}
+
 static void tick(lv_timer_t *t)
 {
     LV_UNUSED(t);
@@ -607,6 +618,7 @@ static void tick(lv_timer_t *t)
     float dt = last_ms == 0 ? 0.016f : (float)(now - last_ms) / 1000.0f;
     last_ms = now;
     if (dt > 0.05f) dt = 0.05f;
+    update_motion_control();
     if (state == PLAYING || state == READY || state == LEVEL_DONE) {
         update_game(dt);
     }
@@ -621,7 +633,17 @@ extern "C" void orbit_breaker_open(lv_obj_t *target)
     memset(brick_arc, 0, sizeof(brick_arc));
     build_ui(target);
     input_set_game_gesture_callback(ignore_game_gesture);
-    timer = lv_timer_create(tick, 16, nullptr);
+    if (!motion_sensor_ready) {
+        i2c_master_bus_handle_t bus = bsp_i2c_get_handle();
+        if (bus && qmi8658_init(&motion_sensor, bus, QMI8658_ADDRESS_HIGH) == ESP_OK) {
+            qmi8658_set_accel_range(&motion_sensor, QMI8658_ACCEL_RANGE_8G);
+            qmi8658_set_accel_odr(&motion_sensor, QMI8658_ACCEL_ODR_500HZ);
+            qmi8658_set_accel_unit_mps2(&motion_sensor, true);
+            qmi8658_write_register(&motion_sensor, QMI8658_CTRL5, 0x03);
+            motion_sensor_ready = true;
+        }
+    }
+    timer = lv_timer_create(tick, 20, nullptr);
 }
 
 extern "C" void orbit_breaker_stop(void)
