@@ -1,7 +1,5 @@
-#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <math.h>
 #include <stdbool.h>
 
 #include "esp_log.h"
@@ -532,8 +530,18 @@ static void show_status(const char *title,const char *message)
 void app_main(void)
 {
     ESP_LOGI(TAG,"Starting RoundGames Phase 3");
-    esp_err_t nvs_ret=nvs_flash_init();
-    if(nvs_ret==ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret==ESP_ERR_NVS_NEW_VERSION_FOUND){nvs_flash_erase();nvs_flash_init();}
+    esp_err_t nvs_ret = nvs_flash_init();
+    if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+        nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_ret = nvs_flash_erase();
+        if (nvs_ret == ESP_OK) {
+            nvs_ret = nvs_flash_init();
+        }
+    }
+    if (nvs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "NVS initialization failed: %s",
+                 esp_err_to_name(nvs_ret));
+    }
     screensaver_init();
     clock_init();
     input_init();
