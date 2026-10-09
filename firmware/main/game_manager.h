@@ -7,7 +7,8 @@ typedef enum {
     GAME_ID_NONE = -1,
     GAME_ID_TIC_TAC_TOE = 0,
     GAME_ID_SNAKE = 1,
-    GAME_ID_VEGG = 2
+    GAME_ID_VEGG = 2,
+    GAME_ID_ORBIT_BREAKER = 3
 } game_id_t;
 
 void game_manager_init(void);
