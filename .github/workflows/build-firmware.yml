@@ -103,6 +103,37 @@ jobs:
         continue-on-error: true
         uses: actions/deploy-pages@v4
 
+      - name: Verify published installer and firmware
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${GITHUB_SHA::12}
+        run: |
+          if [[ "${{ steps.deployment.outcome }}" == "failure" && "${{ steps.deployment_retry.outcome }}" != "success" ]]; then
+            echo "Both GitHub Pages deployment attempts failed."
+            exit 1
+          fi
+
+          BASE_URL="https://e1d0k4.github.io/RoundGames"
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \\
+            "${BASE_URL}/manifest.json" -o /tmp/roundgames-manifest.json
+          echo "Published manifest:"
+          cat /tmp/roundgames-manifest.json
+
+          ACTUAL_VERSION="$(jq -r '.version' /tmp/roundgames-manifest.json)"
+          BIN_PATH="$(jq -r '.builds[0].parts[0].path' /tmp/roundgames-manifest.json)"
+          EXPECTED_BIN="./roundgames-${EXPECTED_VERSION}.bin"
+          if [[ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" || "$BIN_PATH" != "$EXPECTED_BIN" ]]; then
+            echo "Published manifest is stale or points to the wrong firmware."
+            echo "Expected version=$EXPECTED_VERSION path=$EXPECTED_BIN; got version=$ACTUAL_VERSION path=$BIN_PATH"
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \\
+            "${BASE_URL}/${BIN_PATH#./}" -o /tmp/roundgames-published.bin
+          test -s /tmp/roundgames-published.bin
+          cmp firmware/roundgames-full.bin /tmp/roundgames-published.bin
+          echo "Published manifest and firmware match commit ${EXPECTED_VERSION}."
+
       - name: Publish installer firmware
         uses: softprops/action-gh-release@v2
         with:
